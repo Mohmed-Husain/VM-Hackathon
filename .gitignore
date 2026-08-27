@@ -17,6 +17,9 @@ coverage/
 dist/
 build/
 
+# App runtime storage
+backend/storage/
+
 # Environment
 .env
 .env.local
