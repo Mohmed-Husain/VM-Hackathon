@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.ocr import PassportOcrExtraction
+
 DocumentType = Literal["passport_scan", "applicant_photo", "flight_itinerary", "hotel_booking"]
 
 
@@ -16,4 +18,5 @@ class DocumentResponse(BaseModel):
     public_url: str
     content_type: str
     file_size_bytes: int
+    ocr_extraction: PassportOcrExtraction | None = None
     created_at: datetime

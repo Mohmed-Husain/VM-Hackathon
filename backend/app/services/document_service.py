@@ -11,6 +11,7 @@ from app.repositories.application_repository import ApplicationRepository
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.application import ApplicationFormData
 from app.schemas.document import DocumentResponse
+from app.schemas.ocr import PassportOcrExtraction
 from app.utils.application_rules import build_validation_summary, derive_status
 
 ALLOWED_DOCUMENT_TYPES = {"passport_scan", "applicant_photo", "flight_itinerary", "hotel_booking"}
@@ -125,6 +126,10 @@ class DocumentService:
         application.status = derive_status(validation_summary)
 
     def _serialize(self, document) -> DocumentResponse:
+        ocr_extraction = None
+        if document.extracted_ocr_data:
+            ocr_extraction = PassportOcrExtraction.model_validate(document.extracted_ocr_data)
+
         return DocumentResponse(
             document_id=document.id,
             application_id=document.application_id,
@@ -134,5 +139,6 @@ class DocumentService:
             public_url=document.public_url,
             content_type=document.content_type,
             file_size_bytes=document.file_size_bytes,
+            ocr_extraction=ocr_extraction,
             created_at=document.created_at,
         )

@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { VisaAssistantWidget } from "@/components/assistant/visa-assistant-widget";
 import { ProtectedPage } from "@/components/auth/protected-page";
 import { VISA_CATEGORIES } from "@/content/visa-categories";
 import { createApplication, getApplications, getCurrentUser } from "@/lib/api";
@@ -98,11 +99,11 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
         <section className="content-panel">
           <div className="topbar">
             <div>
-              <span className="eyebrow">Module 3</span>
+              <span className="eyebrow">Module 3 + 10</span>
               <h1 className="card-title">Welcome back, {currentUser.full_name}.</h1>
               <p className="card-copy">
-                Your dashboard now pulls real application data from FastAPI so we can create new drafts and resume the
-                seeded application journey.
+                Your dashboard pulls live application data from FastAPI and now includes a grounded assistant for quick
+                visa guidance while you create or resume drafts.
               </p>
             </div>
             <button className="secondary-button" type="button" onClick={handleSignOut}>
@@ -207,6 +208,7 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
           </div>
         </section>
       </div>
+      <VisaAssistantWidget accessToken={session.accessToken} />
     </main>
   );
 }

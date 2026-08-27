@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 8 * 60
     frontend_url: str = "http://localhost:3000"
     backend_public_url: str = "http://localhost:8000"
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    openai_model: str = "gpt-5-mini"
     auto_create_tables: bool = True
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
@@ -62,6 +64,10 @@ class Settings(BaseSettings):
     @property
     def storage_root(self) -> Path:
         return PROJECT_ROOT / "backend" / "storage"
+
+    @property
+    def visa_rules_path(self) -> Path:
+        return PROJECT_ROOT / "backend" / "app" / "data" / "official_visa_rules.json"
 
 
 @lru_cache

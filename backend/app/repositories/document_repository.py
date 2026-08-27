@@ -27,6 +27,25 @@ class DocumentRepository:
         )
         return list(result.scalars().all())
 
+    async def get_for_application(self, session: AsyncSession, application_id: UUID, document_id: UUID) -> Document | None:
+        result = await session.execute(
+            select(Document).where(Document.application_id == application_id, Document.id == document_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_latest_by_type(
+        self,
+        session: AsyncSession,
+        application_id: UUID,
+        document_type: str,
+    ) -> Document | None:
+        result = await session.execute(
+            select(Document)
+            .where(Document.application_id == application_id, Document.document_type == document_type)
+            .order_by(Document.created_at.desc())
+        )
+        return result.scalars().first()
+
     async def create(
         self,
         session: AsyncSession,

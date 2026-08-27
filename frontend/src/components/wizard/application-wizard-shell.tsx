@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { VisaAssistantWidget } from "@/components/assistant/visa-assistant-widget";
 import { ProtectedPage } from "@/components/auth/protected-page";
 import {
   WIZARD_STEPS,
@@ -17,18 +18,22 @@ import {
   getApplication,
   getDocuments,
   getProfile,
+  runPassportOcr,
   saveApplicationDraft,
   saveProfile,
   uploadDocument,
 } from "@/lib/api";
 import { buildLocalDraftSnapshot, readLocalDraft, writeLocalDraft } from "@/lib/draft-storage";
+import { prepareDocumentUpload } from "@/lib/image-processing";
 import { clearSession } from "@/lib/session";
 import type { StoredSession } from "@/types/auth";
-import type { ApplicationDocument, DocumentType } from "@/types/document";
+import type { ApplicationDocument, DocumentType, PassportOcrExtraction, PassportOcrResponse } from "@/types/document";
 import type { ApplicantProfile, ProfilePayload } from "@/types/profile";
 import type { ApplicationDetail, ApplicationFormData } from "@/types/application";
 
-type SaveMode = "manual" | "autosave" | "navigation";
+type SaveMode = "manual" | "autosave" | "navigation" | "ocr";
+type UploadState = "idle" | "compressing" | "uploading" | "ocr";
+type PassportOcrPreview = PassportOcrExtraction | PassportOcrResponse;
 
 const DOCUMENT_CARDS: Array<{
   type: DocumentType;
@@ -83,12 +88,14 @@ function ApplicationWizardContent({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [uploadingByType, setUploadingByType] = useState<Record<DocumentType, boolean>>({
-    passport_scan: false,
-    applicant_photo: false,
-    flight_itinerary: false,
-    hotel_booking: false,
+  const [uploadStateByType, setUploadStateByType] = useState<Record<DocumentType, UploadState>>({
+    passport_scan: "idle",
+    applicant_photo: "idle",
+    flight_itinerary: "idle",
+    hotel_booking: "idle",
   });
+  const [uploadNotes, setUploadNotes] = useState<Partial<Record<DocumentType, string>>>({});
+  const [latestPassportOcr, setLatestPassportOcr] = useState<PassportOcrPreview | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -162,6 +169,7 @@ function ApplicationWizardContent({
         setApplication(response);
         setProfile(savedProfile);
         setDocuments(applicationDocuments);
+        setLatestPassportOcr(applicationDocuments.find((document) => document.document_type === "passport_scan")?.ocr_extraction ?? null);
         setDraft(nextDraft);
         setActiveStep(nextStep);
         setHighestStepUnlocked(Math.max(response.current_step, nextStep));
@@ -193,6 +201,8 @@ function ApplicationWizardContent({
   const progressPercentage = isDirty ? liveProgress : application?.progress_percentage ?? liveProgress;
   const currentStepErrors = validationSummary.stepErrors[activeStep];
   const visibleCurrentStepErrors = Object.entries(currentStepErrors).filter(([field]) => touchedFields[field]);
+  const passportDocument = documents.find((document) => document.document_type === "passport_scan");
+  const passportOcrPreview = latestPassportOcr ?? passportDocument?.ocr_extraction ?? null;
 
   useEffect(() => {
     if (!application || isLoading) {
@@ -233,7 +243,7 @@ function ApplicationWizardContent({
       setHighestStepUnlocked((current) => Math.max(current, response.current_step));
       setIsDirty(false);
       setLastSyncedAt(response.updated_at);
-      setSaveMessage(mode === "autosave" ? "Saved just now" : `Saved step ${response.current_step} just now`);
+      setSaveMessage(resolveSaveMessage(mode, response.current_step));
     } catch (requestError) {
       const handled = handleRequestError(requestError, router, setError);
       if (handled === "auth") {
@@ -380,21 +390,23 @@ function ApplicationWizardContent({
     }
   }
 
-  async function refreshDocumentsState() {
+  async function refreshDocumentsState(nextMessage = "Documents synced just now") {
     try {
       const [applicationResponse, documentResponse] = await Promise.all([
         getApplication(session.accessToken, applicationId),
         getDocuments(session.accessToken, applicationId),
       ]);
 
+      const latestPassportDocument = documentResponse.find((document) => document.document_type === "passport_scan");
       setApplication(applicationResponse);
       setDocuments(documentResponse);
+      setLatestPassportOcr(latestPassportDocument?.ocr_extraction ?? null);
       setDraft((current) => ({
         ...current,
         documents: applicationResponse.form_data.documents,
       }));
       setLastSyncedAt(applicationResponse.updated_at);
-      setSaveMessage("Documents synced just now");
+      setSaveMessage(nextMessage);
     } catch (requestError) {
       handleRequestError(requestError, router, setError);
     }
@@ -402,20 +414,69 @@ function ApplicationWizardContent({
 
   async function handleDocumentUpload(documentType: DocumentType, file: File) {
     try {
-      setUploadingByType((current) => ({
+      setUploadStateByType((current) => ({
         ...current,
-        [documentType]: true,
+        [documentType]: "compressing",
       }));
       setError("");
-      await uploadDocument(session.accessToken, applicationId, documentType, file);
+      const prepared = await prepareDocumentUpload(documentType, file);
+      setUploadNotes((current) => ({
+        ...current,
+        [documentType]: prepared.notes.join(" "),
+      }));
+
+      setUploadStateByType((current) => ({
+        ...current,
+        [documentType]: "uploading",
+      }));
+
+      const uploadedDocument = await uploadDocument(session.accessToken, applicationId, documentType, prepared.file);
       handleFieldBlur(getDocumentFieldPath(documentType));
+
+      if (documentType === "passport_scan") {
+        setUploadStateByType((current) => ({
+          ...current,
+          [documentType]: "ocr",
+        }));
+
+        const ocrResponse = await runPassportOcr(session.accessToken, {
+          application_id: applicationId,
+          document_id: uploadedDocument.document_id,
+        });
+
+        const nextDraft = mergeOcrIntoDraft(draftRef.current, ocrResponse);
+        setLatestPassportOcr(ocrResponse);
+        setDraft(nextDraft);
+        setIsDirty(true);
+        setTouchedFields((current) => ({
+          ...current,
+          "personal.first_name": true,
+          "personal.last_name": true,
+          "personal.date_of_birth": true,
+          "personal.nationality": true,
+          "passport.passport_number": true,
+          "passport.issuing_country": true,
+          "passport.issue_date": true,
+          "passport.expiry_date": true,
+        }));
+        setUploadNotes((current) => ({
+          ...current,
+          [documentType]: [current[documentType], "Passport details were auto-filled via OCR."]
+            .filter(Boolean)
+            .join(" "),
+        }));
+        await persistDraft("ocr", stepRef.current, nextDraft);
+        await refreshDocumentsState("Passport details auto-filled via OCR");
+        return;
+      }
+
       await refreshDocumentsState();
     } catch (requestError) {
       handleRequestError(requestError, router, setError);
     } finally {
-      setUploadingByType((current) => ({
+      setUploadStateByType((current) => ({
         ...current,
-        [documentType]: false,
+        [documentType]: "idle",
       }));
     }
   }
@@ -446,11 +507,11 @@ function ApplicationWizardContent({
         <section className="content-panel">
           <div className="topbar">
             <div>
-              <span className="eyebrow">Module 7 + 8</span>
+              <span className="eyebrow">Module 9 + 10</span>
               <h1 className="card-title">{application ? getCategoryLabel(application.visa_category) : "Application wizard"}</h1>
               <p className="card-copy">
-                Saved profile prefill and real document uploads are now part of the flow, while autosave and validation
-                continue to protect the application draft.
+                The wizard now compresses image uploads on the client, simulates passport OCR for faster data entry,
+                and adds grounded visa guidance beside the existing autosave and validation flow.
               </p>
             </div>
             <button className="secondary-button" type="button" onClick={handleReturnToDashboard}>
@@ -572,41 +633,50 @@ function ApplicationWizardContent({
           ) : null}
 
           {activeStep === 2 ? (
-            <div className="form-grid two-col">
-              <Field
-                path="passport.passport_number"
-                label="Passport Number"
-                value={draft.passport.passport_number}
-                error={getVisibleFieldError("passport.passport_number", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("passport", "passport_number", value.toUpperCase())}
-              />
-              <Field
-                path="passport.issuing_country"
-                label="Issuing Country"
-                value={draft.passport.issuing_country}
-                error={getVisibleFieldError("passport.issuing_country", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("passport", "issuing_country", value)}
-              />
-              <Field
-                path="passport.issue_date"
-                label="Issue Date"
-                type="date"
-                value={draft.passport.issue_date}
-                error={getVisibleFieldError("passport.issue_date", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("passport", "issue_date", value)}
-              />
-              <Field
-                path="passport.expiry_date"
-                label="Expiry Date"
-                type="date"
-                value={draft.passport.expiry_date}
-                error={getVisibleFieldError("passport.expiry_date", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("passport", "expiry_date", value)}
-              />
+            <div className="review-grid">
+              {passportOcrPreview ? (
+                <div className="helper-box">
+                  <strong>Auto-filled via OCR</strong>
+                  Passport details were prefilled from the uploaded passport scan with{" "}
+                  {Math.round(passportOcrPreview.confidence_score * 100)}% confidence. You can edit any field below.
+                </div>
+              ) : null}
+              <div className="form-grid two-col">
+                <Field
+                  path="passport.passport_number"
+                  label="Passport Number"
+                  value={draft.passport.passport_number}
+                  error={getVisibleFieldError("passport.passport_number", touchedFields, validationSummary.stepErrors)}
+                  onBlur={handleFieldBlur}
+                  onChange={(value) => handleFieldChange("passport", "passport_number", value.toUpperCase())}
+                />
+                <Field
+                  path="passport.issuing_country"
+                  label="Issuing Country"
+                  value={draft.passport.issuing_country}
+                  error={getVisibleFieldError("passport.issuing_country", touchedFields, validationSummary.stepErrors)}
+                  onBlur={handleFieldBlur}
+                  onChange={(value) => handleFieldChange("passport", "issuing_country", value)}
+                />
+                <Field
+                  path="passport.issue_date"
+                  label="Issue Date"
+                  type="date"
+                  value={draft.passport.issue_date}
+                  error={getVisibleFieldError("passport.issue_date", touchedFields, validationSummary.stepErrors)}
+                  onBlur={handleFieldBlur}
+                  onChange={(value) => handleFieldChange("passport", "issue_date", value)}
+                />
+                <Field
+                  path="passport.expiry_date"
+                  label="Expiry Date"
+                  type="date"
+                  value={draft.passport.expiry_date}
+                  error={getVisibleFieldError("passport.expiry_date", touchedFields, validationSummary.stepErrors)}
+                  onBlur={handleFieldBlur}
+                  onChange={(value) => handleFieldChange("passport", "expiry_date", value)}
+                />
+              </div>
             </div>
           ) : null}
 
@@ -662,13 +732,15 @@ function ApplicationWizardContent({
                     accept={card.accept}
                     document={existingDocument}
                     error={getVisibleFieldError(getDocumentFieldPath(card.type), touchedFields, validationSummary.stepErrors)}
-                    isUploading={uploadingByType[card.type]}
+                    note={uploadNotes[card.type]}
+                    uploadState={uploadStateByType[card.type]}
                     onBlur={handleFieldBlur}
                     onDelete={existingDocument ? () => handleDocumentDelete(existingDocument.document_id) : undefined}
                     onFileSelected={(file) => void handleDocumentUpload(card.type, file)}
                   />
                 );
               })}
+              {passportOcrPreview ? <OcrPreviewCard extraction={passportOcrPreview} /> : null}
             </div>
           ) : null}
 
@@ -766,6 +838,7 @@ function ApplicationWizardContent({
           </div>
         </section>
       </div>
+      <VisaAssistantWidget accessToken={session.accessToken} applicationId={applicationId} currentStep={activeStep} />
     </main>
   );
 }
@@ -810,7 +883,8 @@ function DocumentUploadCard({
   accept,
   document,
   error,
-  isUploading,
+  note,
+  uploadState,
   onBlur,
   onFileSelected,
   onDelete,
@@ -821,7 +895,8 @@ function DocumentUploadCard({
   accept: string;
   document?: ApplicationDocument;
   error?: string;
-  isUploading: boolean;
+  note?: string;
+  uploadState: UploadState;
   onBlur: (fieldPath: string) => void;
   onFileSelected: (file: File) => void;
   onDelete?: () => void;
@@ -859,8 +934,8 @@ function DocumentUploadCard({
           <p className="card-copy small">{description}</p>
         </div>
         <span className="status-chip compact-chip">
-          <span className={`status-dot ${document ? "" : "status-dot-warm"}`} />
-          {document ? "Uploaded" : isUploading ? "Uploading" : "Required"}
+          <span className={`status-dot ${uploadState === "idle" && document ? "" : "status-dot-warm"}`} />
+          {getUploadStateLabel(uploadState, Boolean(document))}
         </span>
       </div>
 
@@ -876,6 +951,7 @@ function DocumentUploadCard({
         ) : (
           <p className="subtle">Drag and drop a file here or choose one from your device.</p>
         )}
+        {note ? <span className="subtle">{note}</span> : null}
         {error ? <span className="error-text">{error}</span> : null}
       </div>
 
@@ -890,7 +966,7 @@ function DocumentUploadCard({
         <button
           className="secondary-button inline"
           type="button"
-          disabled={isUploading}
+          disabled={uploadState !== "idle"}
           onClick={() => inputRef.current?.click()}
         >
           {document ? "Replace file" : "Choose file"}
@@ -902,6 +978,42 @@ function DocumentUploadCard({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function OcrPreviewCard({
+  extraction,
+}: Readonly<{
+  extraction: PassportOcrExtraction | PassportOcrResponse;
+}>) {
+  const fields = extraction.extracted_fields;
+
+  return (
+    <article className="ocr-preview-card">
+      <div className="document-upload-top">
+        <div>
+          <strong>Passport OCR preview</strong>
+          <p className="card-copy small">
+            Auto-filled via simulated OCR with {Math.round(extraction.confidence_score * 100)}% confidence.
+          </p>
+        </div>
+        <span className="status-chip compact-chip">
+          <span className="status-dot" />
+          OCR ready
+        </span>
+      </div>
+      <div className="ocr-field-grid">
+        <span>{fields.first_name || "Applicant"} {fields.last_name}</span>
+        <span>{fields.passport_number || "Passport number pending"}</span>
+        <span>{fields.nationality || "Nationality pending"}</span>
+        <span>{fields.expiry_date || "Expiry date pending"}</span>
+      </div>
+      <ul className="bulletless compact">
+        {extraction.advisory_notes.map((note) => (
+          <li key={note}>{note}</li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
@@ -953,6 +1065,17 @@ function buildSavedLabel(lastSyncedAt: string): string {
   return `Last synced ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSyncedAt))}`;
 }
 
+function resolveSaveMessage(mode: SaveMode, currentStep: number): string {
+  switch (mode) {
+    case "autosave":
+      return "Saved just now";
+    case "ocr":
+      return "Passport details auto-filled via OCR";
+    default:
+      return `Saved step ${currentStep} just now`;
+  }
+}
+
 function handleRequestError(
   requestError: unknown,
   router: ReturnType<typeof useRouter>,
@@ -986,6 +1109,31 @@ function buildProfilePayloadFromDraft(draft: ApplicationFormData): ProfilePayloa
   };
 }
 
+function mergeOcrIntoDraft(
+  currentDraft: ApplicationFormData,
+  extraction: PassportOcrResponse,
+): ApplicationFormData {
+  const { extracted_fields: extractedFields } = extraction;
+
+  return {
+    ...currentDraft,
+    personal: {
+      ...currentDraft.personal,
+      first_name: extractedFields.first_name || currentDraft.personal.first_name,
+      last_name: extractedFields.last_name || currentDraft.personal.last_name,
+      date_of_birth: extractedFields.date_of_birth || currentDraft.personal.date_of_birth,
+      nationality: extractedFields.nationality || currentDraft.personal.nationality,
+    },
+    passport: {
+      ...currentDraft.passport,
+      passport_number: extractedFields.passport_number || currentDraft.passport.passport_number,
+      issuing_country: extractedFields.issuing_country || currentDraft.passport.issuing_country,
+      issue_date: extractedFields.issue_date || currentDraft.passport.issue_date,
+      expiry_date: extractedFields.expiry_date || currentDraft.passport.expiry_date,
+    },
+  };
+}
+
 function getDocumentFieldPath(documentType: DocumentType): string {
   switch (documentType) {
     case "passport_scan":
@@ -996,6 +1144,19 @@ function getDocumentFieldPath(documentType: DocumentType): string {
       return "documents.flight_itinerary_ready";
     case "hotel_booking":
       return "documents.hotel_booking_ready";
+  }
+}
+
+function getUploadStateLabel(uploadState: UploadState, hasDocument: boolean): string {
+  switch (uploadState) {
+    case "compressing":
+      return "Compressing";
+    case "uploading":
+      return "Uploading";
+    case "ocr":
+      return "Reading passport";
+    default:
+      return hasDocument ? "Uploaded" : "Required";
   }
 }
 

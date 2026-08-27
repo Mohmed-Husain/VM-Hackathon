@@ -1,0 +1,108 @@
+{
+  "topics": [
+    {
+      "id": "apply-in-advance",
+      "title": "Apply in advance",
+      "source_label": "Indian Visa Online e-Visa Instructions",
+      "source_path": "Instructions for Applicant",
+      "summary": "Eligible applicants should apply online at least 4 days before arrival, and medical categories use a 120-day arrival window.",
+      "content": "The official e-Visa guidance says eligible applicants should apply a minimum of 4 days before the date of arrival. e-Medical and e-Medical Attendant applicants can select an arrival date within a 120-day window.",
+      "keywords": ["apply", "advance", "4 days", "arrival", "when", "120 days", "medical"]
+    },
+    {
+      "id": "passport-validity",
+      "title": "Passport validity and blank pages",
+      "source_label": "Indian Visa Online e-Visa FAQ",
+      "source_path": "Eligibility",
+      "summary": "Passports should have at least six months validity and at least two blank pages.",
+      "content": "The official FAQ says the passport should have at least six months validity at the time of application and at least two blank pages for stamping by the Immigration Officer.",
+      "keywords": ["passport", "validity", "six months", "expiry", "blank pages", "stamping"]
+    },
+    {
+      "id": "required-uploads",
+      "title": "Required uploads and document language",
+      "source_label": "Indian Visa Online e-Visa Instructions",
+      "source_path": "Document Required",
+      "summary": "Applicants must upload a recent photograph and the passport bio page, and supporting documents should be in English.",
+      "content": "The official portal requires a recent front-facing photograph with a light or white background and the passport bio page containing personal details. It also says supporting documents such as business cards or invitation letters should be in English.",
+      "keywords": ["documents", "upload", "passport bio page", "supporting", "english", "required", "photo"]
+    },
+    {
+      "id": "photo-specifications",
+      "title": "Digital photo specifications",
+      "source_label": "Indian Visa Online e-Visa Instructions",
+      "source_path": "Photo Requirements",
+      "summary": "Photo uploads should be JPEG, 10 KB to 1 MB, square, front-facing, and on a plain light or white background.",
+      "content": "The official portal says the digital photo should be JPEG, between 10 KB and 1 MB, equal height and width, front-facing, eyes open, without spectacles, and against a plain light-colored or white background with no shadows or borders.",
+      "keywords": ["photo", "jpeg", "1 mb", "white background", "square", "front facing", "spectacles"]
+    },
+    {
+      "id": "passport-scan-specifications",
+      "title": "Passport bio page file guidance",
+      "source_label": "Indian Visa Online e-Visa Instructions",
+      "source_path": "Document Required",
+      "summary": "The passport bio page is required, and the official site commonly lists PDF uploads up to 300 KB for that document.",
+      "content": "The official guidance lists the passport bio page as a mandatory upload and commonly shows PDF support from 10 KB to 300 KB for the scanned bio page.",
+      "keywords": ["passport scan", "bio page", "pdf", "300 kb", "passport page", "file size"]
+    },
+    {
+      "id": "eta-travel",
+      "title": "ETA and travel passport guidance",
+      "source_label": "Indian Visa Online e-Visa Instructions",
+      "source_path": "Post-submission Guidance",
+      "summary": "Applicants should carry a copy of the ETA and travel with the same passport used for the application.",
+      "content": "The official portal tells applicants to carry a copy of the Electronic Travel Authorization and confirm ETA status before travel. It also says travelers should use the same passport that was used for the e-Visa application.",
+      "keywords": ["eta", "travel", "same passport", "granted", "print", "authorization"]
+    },
+    {
+      "id": "eligibility-categories",
+      "title": "MVP categories versus official categories",
+      "source_label": "Smart eVisa MVP",
+      "source_path": "Prototype Scope",
+      "summary": "This MVP exposes a smaller category list than the official portal so the hackathon demo stays focused.",
+      "content": "The production Indian e-Visa portal supports a wider category set. This MVP intentionally narrows that list to a few demo-friendly categories and uses them as simplified prototypes rather than real fee or eligibility advice.",
+      "keywords": ["category", "categories", "tourist", "business", "mvp", "prototype", "fees"]
+    },
+    {
+      "id": "payment-hidden",
+      "title": "Payment is hidden in the MVP flow",
+      "source_label": "Smart eVisa MVP",
+      "source_path": "Prototype Scope",
+      "summary": "Payment is intentionally hidden for now, even though the final SRS includes it later.",
+      "content": "This implementation keeps the payment experience out of the visible applicant flow for now. The review step remains available, but the payment panel stays hidden until the payments module is turned on later.",
+      "keywords": ["payment", "pay", "gateway", "hidden", "later", "review", "submit"]
+    }
+  ],
+  "step_suggestions": {
+    "default": [
+      "What documents do I need before I start?",
+      "How early should I apply for the visa?",
+      "What passport rules should I double-check?"
+    ],
+    "1": [
+      "What applicant details should match my passport exactly?",
+      "Does nationality have to match the passport bio page?",
+      "Can I edit profile details later?"
+    ],
+    "2": [
+      "How much passport validity do I need?",
+      "Can I travel on a different passport than the one I apply with?",
+      "What fields are auto-filled from OCR?"
+    ],
+    "3": [
+      "How early should I apply before arrival?",
+      "What travel details matter most in this draft?",
+      "Do I need onward or return travel details?"
+    ],
+    "4": [
+      "What are the passport scan file rules?",
+      "What photo background should I use?",
+      "Do supporting documents need to be in English?"
+    ],
+    "5": [
+      "What should I review before submission?",
+      "Is payment available yet in this MVP?",
+      "Should I keep a copy of the final authorization?"
+    ]
+  }
+}

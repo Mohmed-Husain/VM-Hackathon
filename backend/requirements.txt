@@ -7,3 +7,4 @@ pydantic-settings
 PyJWT
 email-validator
 python-multipart
+openai

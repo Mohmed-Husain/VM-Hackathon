@@ -1,3 +1,4 @@
+import type { AiChatRequest, AiChatResponse } from "@/types/ai";
 import type { LoginRequest, LoginResponse, SessionUser } from "@/types/auth";
 import type {
   ApplicationDetail,
@@ -5,7 +6,7 @@ import type {
   CreateApplicationRequest,
   SaveDraftRequest,
 } from "@/types/application";
-import type { ApplicationDocument, DocumentType } from "@/types/document";
+import type { ApplicationDocument, DocumentType, PassportOcrResponse } from "@/types/document";
 import type { ApplicantProfile, ProfilePayload } from "@/types/profile";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -194,4 +195,36 @@ export async function deleteDocument(accessToken: string, documentId: string): P
 
     throw new Error(detail);
   }
+}
+
+export async function runPassportOcr(
+  accessToken: string,
+  payload: {
+    application_id: string;
+    document_id?: string;
+  },
+): Promise<PassportOcrResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/ocr/passport-scan`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<PassportOcrResponse>(response);
+}
+
+export async function askVisaAssistant(accessToken: string, payload: AiChatRequest): Promise<AiChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/ai/chat`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<AiChatResponse>(response);
 }
