@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     backend_public_url: str = "http://localhost:8000"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = "gpt-5-mini"
+    payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
     auto_create_tables: bool = True
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 

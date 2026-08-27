@@ -4,8 +4,8 @@ export const WIZARD_STEPS = [
   { step: 1, title: "Personal", description: "Identity and applicant details" },
   { step: 2, title: "Passport", description: "Passport and issuing details" },
   { step: 3, title: "Travel", description: "Arrival plan and stay details" },
-  { step: 4, title: "Documents", description: "Upload placeholders for now" },
-  { step: 5, title: "Review", description: "Summary and declaration" },
+  { step: 4, title: "Documents", description: "Uploads, compression, and OCR" },
+  { step: 5, title: "Review", description: "Declaration and sealed submission" },
 ] as const;
 
 const REQUIRED_PERSONAL_FIELDS = [

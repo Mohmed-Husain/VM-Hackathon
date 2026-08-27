@@ -26,6 +26,14 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [creatingCategory, setCreatingCategory] = useState<VisaCategory | null>(null);
+  const submittedCount = applications.filter((application) => application.status === "Submitted").length;
+  const inProgressCount = applications.filter((application) => application.status !== "Submitted").length;
+  const mostAdvancedApplication = applications.reduce<ApplicationSummary | null>((best, application) => {
+    if (!best || application.progress_percentage > best.progress_percentage) {
+      return application;
+    }
+    return best;
+  }, null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,14 +104,14 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
   return (
     <main className="app-shell">
       <div className="page-frame dashboard-layout">
-        <section className="content-panel">
+        <section className="content-panel dashboard-hero-panel">
           <div className="topbar">
             <div>
-              <span className="eyebrow">Module 3 + 10</span>
+              <span className="eyebrow">Modules 3, 10, 11, 12</span>
               <h1 className="card-title">Welcome back, {currentUser.full_name}.</h1>
               <p className="card-copy">
-                Your dashboard pulls live application data from FastAPI and now includes a grounded assistant for quick
-                visa guidance while you create or resume drafts.
+                Your dashboard now tracks draft readiness, sealed submissions, and grounded guidance while keeping the
+                payment path hidden until we turn it on later.
               </p>
             </div>
             <button className="secondary-button" type="button" onClick={handleSignOut}>
@@ -111,9 +119,29 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
             </button>
           </div>
           {error ? <div className="banner-error">{error}</div> : null}
-          <div className="status-chip">
-            <span className="status-dot" />
-            {error ? "Using cached session" : authStatus}
+          <div className="dashboard-hero-grid">
+            <article className="dashboard-signal-card">
+              <span className="eyebrow">Status</span>
+              <strong>{error ? "Session cached locally" : authStatus}</strong>
+              <span className="subtle">{currentUser.email}</span>
+            </article>
+            <article className="dashboard-signal-card">
+              <span className="eyebrow">In progress</span>
+              <strong>{isLoading ? "-" : inProgressCount}</strong>
+              <span className="subtle">Drafts you can resume right away</span>
+            </article>
+            <article className="dashboard-signal-card">
+              <span className="eyebrow">Submitted</span>
+              <strong>{isLoading ? "-" : submittedCount}</strong>
+              <span className="subtle">Applications already sealed</span>
+            </article>
+            <article className="dashboard-signal-card dashboard-signal-card-accent">
+              <span className="eyebrow">Best progress</span>
+              <strong>{mostAdvancedApplication ? `${mostAdvancedApplication.progress_percentage}%` : "0%"}</strong>
+              <span className="subtle">
+                {mostAdvancedApplication ? getCategoryLabel(mostAdvancedApplication.visa_category) : "Start a new draft"}
+              </span>
+            </article>
           </div>
         </section>
 
@@ -124,7 +152,7 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
           </article>
           <article className="detail-card">
             <strong>Application APIs</strong>
-            <span className="subtle">GET /applications, POST /applications, GET /applications/:applicationId</span>
+            <span className="subtle">Create, autosave, OCR, submit, and assistant routes are now connected</span>
           </article>
           <article className="detail-card">
             <strong>Resume State</strong>
@@ -152,15 +180,17 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
                       Last updated {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(application.updated_at))}
                     </p>
                   </div>
-                  <span className="status-chip compact-chip">
-                    <span className="status-dot" />
+                  <span className={`status-chip compact-chip ${getDashboardStatusClass(application.status)}`}>
+                    <span className={`status-dot ${application.status === "Submitted" ? "" : application.status === "Review Ready" ? "" : "status-dot-warm"}`} />
                     {application.status}
                   </span>
                 </div>
                 <div className="progress-wrap compact-progress">
                   <div className="progress-meta">
                     <strong>{application.progress_percentage}% complete</strong>
-                    <span className="subtle">Resume at step {application.current_step}</span>
+                    <span className="subtle">
+                      {application.status === "Submitted" ? "Sealed application" : `Resume at step ${application.current_step}`}
+                    </span>
                   </div>
                   <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${application.progress_percentage}%` }} />
@@ -171,7 +201,7 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
                   type="button"
                   onClick={() => handleResume(application.application_id)}
                 >
-                  Resume application
+                  {application.status === "Submitted" ? "View submission" : "Resume application"}
                 </button>
               </article>
             ))}
@@ -211,4 +241,15 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
       <VisaAssistantWidget accessToken={session.accessToken} />
     </main>
   );
+}
+
+function getDashboardStatusClass(status: ApplicationSummary["status"]): string {
+  switch (status) {
+    case "Submitted":
+      return "status-chip-success";
+    case "Review Ready":
+      return "status-chip-pending";
+    default:
+      return "";
+  }
 }

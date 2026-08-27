@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { VisaAssistantWidget } from "@/components/assistant/visa-assistant-widget";
 import { ProtectedPage } from "@/components/auth/protected-page";
+import { ReviewSubmissionPanel, type ReviewSection } from "@/components/wizard/review-submission-panel";
 import {
   WIZARD_STEPS,
   calculateProgress,
@@ -21,15 +22,16 @@ import {
   runPassportOcr,
   saveApplicationDraft,
   saveProfile,
+  submitApplication,
   uploadDocument,
 } from "@/lib/api";
 import { buildLocalDraftSnapshot, readLocalDraft, writeLocalDraft } from "@/lib/draft-storage";
 import { prepareDocumentUpload } from "@/lib/image-processing";
 import { clearSession } from "@/lib/session";
+import type { ApplicationDetail, ApplicationFormData } from "@/types/application";
 import type { StoredSession } from "@/types/auth";
 import type { ApplicationDocument, DocumentType, PassportOcrExtraction, PassportOcrResponse } from "@/types/document";
 import type { ApplicantProfile, ProfilePayload } from "@/types/profile";
-import type { ApplicationDetail, ApplicationFormData } from "@/types/application";
 
 type SaveMode = "manual" | "autosave" | "navigation" | "ocr";
 type UploadState = "idle" | "compressing" | "uploading" | "ocr";
@@ -88,6 +90,7 @@ function ApplicationWizardContent({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadStateByType, setUploadStateByType] = useState<Record<DocumentType, UploadState>>({
     passport_scan: "idle",
     applicant_photo: "idle",
@@ -107,8 +110,8 @@ function ApplicationWizardContent({
   const savingRef = useRef(isSaving);
   const dirtyRef = useRef(isDirty);
   const applicationRef = useRef(application);
-  const persistDraftRef = useRef<(mode: SaveMode, nextStep: number, nextDraft: ApplicationFormData) => Promise<void>>(
-    async () => {},
+  const persistDraftRef = useRef<(mode: SaveMode, nextStep: number, nextDraft: ApplicationFormData) => Promise<boolean>>(
+    async () => false,
   );
 
   useEffect(() => {
@@ -153,7 +156,11 @@ function ApplicationWizardContent({
         let nextLastSyncedAt = response.updated_at;
         let nextMessage = "Loaded saved draft";
 
-        if (localSnapshot && shouldPreferLocalDraft(localSnapshot.last_synced_at, response.updated_at, localSnapshot.is_dirty)) {
+        if (
+          localSnapshot &&
+          response.status !== "Submitted" &&
+          shouldPreferLocalDraft(localSnapshot.last_synced_at, response.updated_at, localSnapshot.is_dirty)
+        ) {
           nextDraft = {
             ...localSnapshot.form_data,
             documents: response.form_data.documents,
@@ -171,17 +178,15 @@ function ApplicationWizardContent({
         setDocuments(applicationDocuments);
         setLatestPassportOcr(applicationDocuments.find((document) => document.document_type === "passport_scan")?.ocr_extraction ?? null);
         setDraft(nextDraft);
-        setActiveStep(nextStep);
-        setHighestStepUnlocked(Math.max(response.current_step, nextStep));
-        setIsDirty(nextDirty);
+        setActiveStep(response.status === "Submitted" ? 5 : nextStep);
+        setHighestStepUnlocked(response.status === "Submitted" ? 5 : Math.max(response.current_step, nextStep));
+        setIsDirty(nextDirty && response.status !== "Submitted");
         setLastSyncedAt(nextLastSyncedAt);
-        setSaveMessage(nextMessage);
+        setSaveMessage(response.status === "Submitted" ? `Application submitted on ${formatDateTime(response.submitted_at)}` : nextMessage);
       } catch (requestError) {
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          handleRequestError(requestError, router, setError);
         }
-
-        handleRequestError(requestError, router, setError);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -197,12 +202,14 @@ function ApplicationWizardContent({
   }, [applicationId, router, session.accessToken]);
 
   const validationSummary = getValidationSummary(draft);
+  const isSubmitted = application?.status === "Submitted";
   const liveProgress = calculateProgress(draft);
-  const progressPercentage = isDirty ? liveProgress : application?.progress_percentage ?? liveProgress;
+  const progressPercentage = isSubmitted ? 100 : isDirty ? liveProgress : application?.progress_percentage ?? liveProgress;
   const currentStepErrors = validationSummary.stepErrors[activeStep];
   const visibleCurrentStepErrors = Object.entries(currentStepErrors).filter(([field]) => touchedFields[field]);
   const passportDocument = documents.find((document) => document.document_type === "passport_scan");
   const passportOcrPreview = latestPassportOcr ?? passportDocument?.ocr_extraction ?? null;
+  const reviewSections = buildReviewSections(draft, documents, validationSummary.stepCompletion);
 
   useEffect(() => {
     if (!application || isLoading) {
@@ -221,9 +228,9 @@ function ApplicationWizardContent({
     );
   }, [activeStep, application, draft, isDirty, isLoading, lastSyncedAt, progressPercentage]);
 
-  async function persistDraft(mode: SaveMode, nextStep: number, nextDraft: ApplicationFormData) {
+  async function persistDraft(mode: SaveMode, nextStep: number, nextDraft: ApplicationFormData): Promise<boolean> {
     if (!applicationRef.current) {
-      return;
+      return false;
     }
 
     try {
@@ -244,15 +251,17 @@ function ApplicationWizardContent({
       setIsDirty(false);
       setLastSyncedAt(response.updated_at);
       setSaveMessage(resolveSaveMessage(mode, response.current_step));
+      return true;
     } catch (requestError) {
       const handled = handleRequestError(requestError, router, setError);
       if (handled === "auth") {
-        return;
+        return false;
       }
 
       if (mode === "autosave") {
         setSaveMessage("Offline: changes are stored on this device");
       }
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -262,7 +271,7 @@ function ApplicationWizardContent({
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      if (!applicationRef.current || !dirtyRef.current || savingRef.current) {
+      if (!applicationRef.current || !dirtyRef.current || savingRef.current || applicationRef.current.status === "Submitted") {
         return;
       }
 
@@ -291,10 +300,15 @@ function ApplicationWizardContent({
     }));
   }
 
-  function handleFieldChange<
-    TSection extends keyof ApplicationFormData,
-    TKey extends keyof ApplicationFormData[TSection]
-  >(section: TSection, key: TKey, value: ApplicationFormData[TSection][TKey]) {
+  function handleFieldChange<TSection extends keyof ApplicationFormData, TKey extends keyof ApplicationFormData[TSection]>(
+    section: TSection,
+    key: TKey,
+    value: ApplicationFormData[TSection][TKey],
+  ) {
+    if (isSubmitted) {
+      return;
+    }
+
     setDraft((current) => ({
       ...current,
       [section]: {
@@ -308,6 +322,9 @@ function ApplicationWizardContent({
   }
 
   function handleStepClick(step: number) {
+    if (isSubmitted && step !== 5) {
+      return;
+    }
     if (step > highestStepUnlocked) {
       return;
     }
@@ -335,6 +352,11 @@ function ApplicationWizardContent({
       return;
     }
 
+    if (activeStep === 5) {
+      await persistDraft("manual", 5, draft);
+      return;
+    }
+
     const nextStep = Math.min(5, activeStep + 1);
     await persistDraft("navigation", nextStep, draft);
   }
@@ -346,7 +368,7 @@ function ApplicationWizardContent({
   }
 
   function handleUseSavedProfile() {
-    if (!profile) {
+    if (!profile || isSubmitted) {
       return;
     }
 
@@ -376,6 +398,10 @@ function ApplicationWizardContent({
   }
 
   async function handleSaveProfile() {
+    if (isSubmitted) {
+      return;
+    }
+
     try {
       setIsSavingProfile(true);
       setError("");
@@ -413,6 +439,10 @@ function ApplicationWizardContent({
   }
 
   async function handleDocumentUpload(documentType: DocumentType, file: File) {
+    if (isSubmitted) {
+      return;
+    }
+
     try {
       setUploadStateByType((current) => ({
         ...current,
@@ -461,9 +491,7 @@ function ApplicationWizardContent({
         }));
         setUploadNotes((current) => ({
           ...current,
-          [documentType]: [current[documentType], "Passport details were auto-filled via OCR."]
-            .filter(Boolean)
-            .join(" "),
+          [documentType]: [current[documentType], "Passport details were auto-filled via OCR."].filter(Boolean).join(" "),
         }));
         await persistDraft("ocr", stepRef.current, nextDraft);
         await refreshDocumentsState("Passport details auto-filled via OCR");
@@ -482,12 +510,62 @@ function ApplicationWizardContent({
   }
 
   async function handleDocumentDelete(documentId: string) {
+    if (isSubmitted) {
+      return;
+    }
+
     try {
       setError("");
       await deleteDocument(session.accessToken, documentId);
       await refreshDocumentsState();
     } catch (requestError) {
       handleRequestError(requestError, router, setError);
+    }
+  }
+
+  function handleReviewEdit(step: number) {
+    setActiveStep(step);
+    markFieldsTouched(getStepFieldPaths(step));
+    setError("");
+  }
+
+  async function handleSubmitApplication() {
+    if (isSubmitted) {
+      return;
+    }
+
+    const fieldsToTouch = [1, 2, 3, 4, 5].flatMap((step) => getStepFieldPaths(step));
+    markFieldsTouched(fieldsToTouch);
+
+    if (!validationSummary.isReviewReady || !draft.review.declaration_accepted) {
+      setError("Complete all required steps and accept the declaration before submission.");
+      setSaveMessage("Submission is blocked until the review is complete");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError("");
+      if (isDirty) {
+        const didSave = await persistDraft("manual", 5, draft);
+        if (!didSave) {
+          return;
+        }
+      }
+
+      const response = await submitApplication(session.accessToken, applicationId);
+      const refreshed = await getApplication(session.accessToken, applicationId);
+      setApplication(refreshed);
+      setDraft(refreshed.form_data);
+      setActiveStep(5);
+      setHighestStepUnlocked(5);
+      setIsDirty(false);
+      setLastSyncedAt(response.submitted_at);
+      setSaveMessage("Application sealed and submitted");
+    } catch (requestError) {
+      handleRequestError(requestError, router, setError);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -504,14 +582,14 @@ function ApplicationWizardContent({
   return (
     <main className="app-shell">
       <div className="page-frame wizard-layout">
-        <section className="content-panel">
+        <section className="content-panel wizard-hero-panel">
           <div className="topbar">
             <div>
-              <span className="eyebrow">Module 9 + 10</span>
+              <span className="eyebrow">Modules 11 + 12</span>
               <h1 className="card-title">{application ? getCategoryLabel(application.visa_category) : "Application wizard"}</h1>
               <p className="card-copy">
-                The wizard now compresses image uploads on the client, simulates passport OCR for faster data entry,
-                and adds grounded visa guidance beside the existing autosave and validation flow.
+                The review step now seals submitted applications, while the payment gateway remains intentionally hidden
+                behind a placeholder flag for later activation.
               </p>
             </div>
             <button className="secondary-button" type="button" onClick={handleReturnToDashboard}>
@@ -519,20 +597,24 @@ function ApplicationWizardContent({
             </button>
           </div>
           {error ? <div className="banner-error">{error}</div> : null}
-          <div className="wizard-summary-row">
-            <div className="status-chip">
-              <span className="status-dot" />
+          <div className="wizard-status-grid">
+            <div className={`status-chip status-chip-wide ${isSubmitted ? "status-chip-success" : ""}`}>
+              <span className={`status-dot ${isSubmitted ? "" : "status-dot-warm"}`} />
               {application?.status ?? "Draft"}
             </div>
-            <div className="status-chip">
+            <div className="status-chip status-chip-wide">
               <span className={`status-dot ${saveMessage.includes("Offline") ? "status-dot-danger" : "status-dot-warm"}`} />
               {saveMessage || buildSavedLabel(lastSyncedAt)}
+            </div>
+            <div className={`status-chip status-chip-wide ${validationSummary.isReviewReady ? "status-chip-success" : "status-chip-pending"}`}>
+              <span className={`status-dot ${validationSummary.isReviewReady ? "" : "status-dot-warm"}`} />
+              {validationSummary.isReviewReady ? "Review-ready draft" : "Still validating"}
             </div>
           </div>
           <div className="progress-wrap">
             <div className="progress-meta">
               <strong>{progressPercentage}% complete</strong>
-              <span className="subtle">Current step: {activeStep}</span>
+              <span className="subtle">{isSubmitted ? "Application sealed" : `Current step: ${activeStep}`}</span>
             </div>
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${progressPercentage}%` }} />
@@ -547,9 +629,9 @@ function ApplicationWizardContent({
               type="button"
               className={`wizard-step ${wizardStep.step === activeStep ? "is-active" : ""} ${
                 validationSummary.stepCompletion[wizardStep.step] ? "is-complete" : ""
-              } ${wizardStep.step <= highestStepUnlocked ? "" : "is-disabled"}`}
+              } ${wizardStep.step <= highestStepUnlocked && (!isSubmitted || wizardStep.step === 5) ? "" : "is-disabled"}`}
               onClick={() => handleStepClick(wizardStep.step)}
-              disabled={wizardStep.step > highestStepUnlocked}
+              disabled={wizardStep.step > highestStepUnlocked || (isSubmitted && wizardStep.step !== 5)}
             >
               <span className="wizard-step-number">Step {wizardStep.step}</span>
               <strong>{wizardStep.title}</strong>
@@ -561,10 +643,10 @@ function ApplicationWizardContent({
         <section className="content-panel">
           {(activeStep === 1 || activeStep === 2) && (
             <div className="action-strip">
-              <button className="secondary-button inline" type="button" onClick={handleUseSavedProfile} disabled={!profile}>
+              <button className="secondary-button inline" type="button" onClick={handleUseSavedProfile} disabled={!profile || isSubmitted}>
                 {profile ? "Use my saved profile data" : "No saved profile yet"}
               </button>
-              <button className="secondary-button inline" type="button" onClick={handleSaveProfile} disabled={isSavingProfile}>
+              <button className="secondary-button inline" type="button" onClick={handleSaveProfile} disabled={isSavingProfile || isSubmitted}>
                 {isSavingProfile ? "Saving profile..." : "Save current details as profile"}
               </button>
             </div>
@@ -572,63 +654,13 @@ function ApplicationWizardContent({
 
           {activeStep === 1 ? (
             <div className="form-grid two-col">
-              <Field
-                path="personal.first_name"
-                label="First Name"
-                value={draft.personal.first_name}
-                error={getVisibleFieldError("personal.first_name", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "first_name", value)}
-              />
-              <Field
-                path="personal.last_name"
-                label="Last Name"
-                value={draft.personal.last_name}
-                error={getVisibleFieldError("personal.last_name", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "last_name", value)}
-              />
-              <Field
-                path="personal.date_of_birth"
-                label="Date of Birth"
-                type="date"
-                value={draft.personal.date_of_birth}
-                error={getVisibleFieldError("personal.date_of_birth", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "date_of_birth", value)}
-              />
-              <Field
-                path="personal.nationality"
-                label="Nationality"
-                value={draft.personal.nationality}
-                error={getVisibleFieldError("personal.nationality", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "nationality", value)}
-              />
-              <Field
-                path="personal.gender"
-                label="Gender"
-                value={draft.personal.gender}
-                error={getVisibleFieldError("personal.gender", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "gender", value)}
-              />
-              <Field
-                path="personal.marital_status"
-                label="Marital Status"
-                value={draft.personal.marital_status}
-                error={getVisibleFieldError("personal.marital_status", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "marital_status", value)}
-              />
-              <Field
-                path="personal.occupation"
-                label="Occupation"
-                value={draft.personal.occupation}
-                error={getVisibleFieldError("personal.occupation", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("personal", "occupation", value)}
-              />
+              <Field path="personal.first_name" label="First Name" value={draft.personal.first_name} error={getVisibleFieldError("personal.first_name", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "first_name", value)} />
+              <Field path="personal.last_name" label="Last Name" value={draft.personal.last_name} error={getVisibleFieldError("personal.last_name", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "last_name", value)} />
+              <Field path="personal.date_of_birth" label="Date of Birth" type="date" value={draft.personal.date_of_birth} error={getVisibleFieldError("personal.date_of_birth", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "date_of_birth", value)} />
+              <Field path="personal.nationality" label="Nationality" value={draft.personal.nationality} error={getVisibleFieldError("personal.nationality", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "nationality", value)} />
+              <Field path="personal.gender" label="Gender" value={draft.personal.gender} error={getVisibleFieldError("personal.gender", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "gender", value)} />
+              <Field path="personal.marital_status" label="Marital Status" value={draft.personal.marital_status} error={getVisibleFieldError("personal.marital_status", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "marital_status", value)} />
+              <Field path="personal.occupation" label="Occupation" value={draft.personal.occupation} error={getVisibleFieldError("personal.occupation", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("personal", "occupation", value)} />
             </div>
           ) : null}
 
@@ -642,80 +674,20 @@ function ApplicationWizardContent({
                 </div>
               ) : null}
               <div className="form-grid two-col">
-                <Field
-                  path="passport.passport_number"
-                  label="Passport Number"
-                  value={draft.passport.passport_number}
-                  error={getVisibleFieldError("passport.passport_number", touchedFields, validationSummary.stepErrors)}
-                  onBlur={handleFieldBlur}
-                  onChange={(value) => handleFieldChange("passport", "passport_number", value.toUpperCase())}
-                />
-                <Field
-                  path="passport.issuing_country"
-                  label="Issuing Country"
-                  value={draft.passport.issuing_country}
-                  error={getVisibleFieldError("passport.issuing_country", touchedFields, validationSummary.stepErrors)}
-                  onBlur={handleFieldBlur}
-                  onChange={(value) => handleFieldChange("passport", "issuing_country", value)}
-                />
-                <Field
-                  path="passport.issue_date"
-                  label="Issue Date"
-                  type="date"
-                  value={draft.passport.issue_date}
-                  error={getVisibleFieldError("passport.issue_date", touchedFields, validationSummary.stepErrors)}
-                  onBlur={handleFieldBlur}
-                  onChange={(value) => handleFieldChange("passport", "issue_date", value)}
-                />
-                <Field
-                  path="passport.expiry_date"
-                  label="Expiry Date"
-                  type="date"
-                  value={draft.passport.expiry_date}
-                  error={getVisibleFieldError("passport.expiry_date", touchedFields, validationSummary.stepErrors)}
-                  onBlur={handleFieldBlur}
-                  onChange={(value) => handleFieldChange("passport", "expiry_date", value)}
-                />
+                <Field path="passport.passport_number" label="Passport Number" value={draft.passport.passport_number} error={getVisibleFieldError("passport.passport_number", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("passport", "passport_number", value.toUpperCase())} />
+                <Field path="passport.issuing_country" label="Issuing Country" value={draft.passport.issuing_country} error={getVisibleFieldError("passport.issuing_country", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("passport", "issuing_country", value)} />
+                <Field path="passport.issue_date" label="Issue Date" type="date" value={draft.passport.issue_date} error={getVisibleFieldError("passport.issue_date", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("passport", "issue_date", value)} />
+                <Field path="passport.expiry_date" label="Expiry Date" type="date" value={draft.passport.expiry_date} error={getVisibleFieldError("passport.expiry_date", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("passport", "expiry_date", value)} />
               </div>
             </div>
           ) : null}
 
           {activeStep === 3 ? (
             <div className="form-grid two-col">
-              <Field
-                path="travel.intended_arrival_date"
-                label="Intended Arrival Date"
-                type="date"
-                value={draft.travel.intended_arrival_date}
-                error={getVisibleFieldError("travel.intended_arrival_date", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("travel", "intended_arrival_date", value)}
-              />
-              <Field
-                path="travel.port_of_entry"
-                label="Port of Entry"
-                value={draft.travel.port_of_entry}
-                error={getVisibleFieldError("travel.port_of_entry", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("travel", "port_of_entry", value)}
-              />
-              <Field
-                path="travel.stay_duration_days"
-                label="Stay Duration in Days"
-                type="number"
-                value={draft.travel.stay_duration_days}
-                error={getVisibleFieldError("travel.stay_duration_days", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("travel", "stay_duration_days", value)}
-              />
-              <Field
-                path="travel.accommodation_address"
-                label="Accommodation Address"
-                value={draft.travel.accommodation_address}
-                error={getVisibleFieldError("travel.accommodation_address", touchedFields, validationSummary.stepErrors)}
-                onBlur={handleFieldBlur}
-                onChange={(value) => handleFieldChange("travel", "accommodation_address", value)}
-              />
+              <Field path="travel.intended_arrival_date" label="Intended Arrival Date" type="date" value={draft.travel.intended_arrival_date} error={getVisibleFieldError("travel.intended_arrival_date", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("travel", "intended_arrival_date", value)} />
+              <Field path="travel.port_of_entry" label="Port of Entry" value={draft.travel.port_of_entry} error={getVisibleFieldError("travel.port_of_entry", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("travel", "port_of_entry", value)} />
+              <Field path="travel.stay_duration_days" label="Stay Duration in Days" type="number" value={draft.travel.stay_duration_days} error={getVisibleFieldError("travel.stay_duration_days", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("travel", "stay_duration_days", value)} />
+              <Field path="travel.accommodation_address" label="Accommodation Address" value={draft.travel.accommodation_address} error={getVisibleFieldError("travel.accommodation_address", touchedFields, validationSummary.stepErrors)} disabled={isSubmitted} onBlur={handleFieldBlur} onChange={(value) => handleFieldChange("travel", "accommodation_address", value)} />
             </div>
           ) : null}
 
@@ -734,6 +706,7 @@ function ApplicationWizardContent({
                     error={getVisibleFieldError(getDocumentFieldPath(card.type), touchedFields, validationSummary.stepErrors)}
                     note={uploadNotes[card.type]}
                     uploadState={uploadStateByType[card.type]}
+                    isLocked={isSubmitted}
                     onBlur={handleFieldBlur}
                     onDelete={existingDocument ? () => handleDocumentDelete(existingDocument.document_id) : undefined}
                     onFileSelected={(file) => void handleDocumentUpload(card.type, file)}
@@ -745,66 +718,20 @@ function ApplicationWizardContent({
           ) : null}
 
           {activeStep === 5 ? (
-            <div className="review-grid">
-              <ReviewBlock
-                title="Personal Details"
-                content={[
-                  `${draft.personal.first_name} ${draft.personal.last_name}`.trim() || "Not filled yet",
-                  draft.personal.date_of_birth || "Date of birth pending",
-                  draft.personal.nationality || "Nationality pending",
-                  draft.personal.occupation || "Occupation pending",
-                ]}
-              />
-              <ReviewBlock
-                title="Passport"
-                content={[
-                  draft.passport.passport_number || "Passport number pending",
-                  draft.passport.issuing_country || "Issuing country pending",
-                  draft.passport.expiry_date || "Expiry date pending",
-                ]}
-              />
-              <ReviewBlock
-                title="Travel"
-                content={[
-                  draft.travel.intended_arrival_date || "Arrival date pending",
-                  draft.travel.port_of_entry || "Port of entry pending",
-                  draft.travel.accommodation_address || "Accommodation pending",
-                ]}
-              />
-              <ReviewBlock
-                title="Documents"
-                content={DOCUMENT_CARDS.map((card) => {
-                  const document = documents.find((item) => item.document_type === card.type);
-                  return document ? `${card.title}: ${document.file_name}` : `${card.title}: pending`;
-                })}
-              />
-              <label className="check-panel">
-                <input
-                  type="checkbox"
-                  checked={draft.review.declaration_accepted}
-                  onBlur={() => handleFieldBlur("review.declaration_accepted")}
-                  onChange={(event) => handleFieldChange("review", "declaration_accepted", event.target.checked)}
-                />
-                <span>
-                  I hereby declare that the information entered in this MVP application draft is accurate to the best
-                  of my knowledge.
-                </span>
-              </label>
-              {getVisibleFieldError("review.declaration_accepted", touchedFields, validationSummary.stepErrors) ? (
-                <span className="error-text">
-                  {getVisibleFieldError("review.declaration_accepted", touchedFields, validationSummary.stepErrors)}
-                </span>
-              ) : null}
-              {getVisibleFieldError("review.readiness", touchedFields, validationSummary.stepErrors) ? (
-                <span className="error-text">
-                  {getVisibleFieldError("review.readiness", touchedFields, validationSummary.stepErrors)}
-                </span>
-              ) : null}
-              <div className="helper-box">
-                <strong>Payment is intentionally hidden</strong>
-                The payment section is reserved for a later module and stays out of the visible applicant flow for now.
-              </div>
-            </div>
+            <ReviewSubmissionPanel
+              sections={reviewSections}
+              isReviewReady={validationSummary.isReviewReady}
+              declarationAccepted={draft.review.declaration_accepted}
+              declarationError={getVisibleFieldError("review.declaration_accepted", touchedFields, validationSummary.stepErrors)}
+              readinessError={getVisibleFieldError("review.readiness", touchedFields, validationSummary.stepErrors)}
+              isSubmitting={isSubmitting}
+              isSubmitted={isSubmitted}
+              submittedAt={application?.submitted_at}
+              onEditStep={handleReviewEdit}
+              onDeclarationBlur={() => handleFieldBlur("review.declaration_accepted")}
+              onDeclarationChange={(nextValue) => handleFieldChange("review", "declaration_accepted", nextValue)}
+              onSubmit={() => void handleSubmitApplication()}
+            />
           ) : null}
 
           {visibleCurrentStepErrors.length > 0 ? (
@@ -819,21 +746,18 @@ function ApplicationWizardContent({
           ) : null}
 
           <div className="wizard-actions">
-            <button className="secondary-button" type="button" onClick={handleSave} disabled={isSaving}>
+            <button className="secondary-button" type="button" onClick={handleSave} disabled={isSaving || isSubmitted}>
               {isSaving ? "Saving..." : "Save draft"}
             </button>
             <div className="wizard-actions-right">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleBack}
-                disabled={isSaving || activeStep === 1}
-              >
+              <button className="secondary-button" type="button" onClick={handleBack} disabled={isSaving || isSubmitted || activeStep === 1}>
                 Back
               </button>
-              <button className="primary-button inline" type="button" onClick={handleContinue} disabled={isSaving}>
-                {activeStep === 5 ? "Validate and save review" : "Save and continue"}
-              </button>
+              {!isSubmitted ? (
+                <button className="primary-button inline" type="button" onClick={handleContinue} disabled={isSaving}>
+                  {activeStep === 5 ? "Save review state" : "Save and continue"}
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -848,6 +772,7 @@ function Field({
   label,
   value,
   error,
+  disabled = false,
   onBlur,
   onChange,
   type = "text",
@@ -856,6 +781,7 @@ function Field({
   label: string;
   value: string;
   error?: string;
+  disabled?: boolean;
   onBlur: (fieldPath: string) => void;
   onChange: (value: string) => void;
   type?: "text" | "date" | "number";
@@ -868,6 +794,7 @@ function Field({
         data-invalid={Boolean(error)}
         type={type}
         value={value}
+        disabled={disabled}
         onBlur={() => onBlur(path)}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -885,6 +812,7 @@ function DocumentUploadCard({
   error,
   note,
   uploadState,
+  isLocked,
   onBlur,
   onFileSelected,
   onDelete,
@@ -897,6 +825,7 @@ function DocumentUploadCard({
   error?: string;
   note?: string;
   uploadState: UploadState;
+  isLocked: boolean;
   onBlur: (fieldPath: string) => void;
   onFileSelected: (file: File) => void;
   onDelete?: () => void;
@@ -916,13 +845,19 @@ function DocumentUploadCard({
 
   return (
     <div
-      className={`document-upload-card ${isDragging ? "is-dragging" : ""} ${document ? "is-uploaded" : ""}`}
+      className={`document-upload-card ${isDragging ? "is-dragging" : ""} ${document ? "is-uploaded" : ""} ${isLocked ? "is-locked" : ""}`}
       onDragOver={(event) => {
+        if (isLocked) {
+          return;
+        }
         event.preventDefault();
         setIsDragging(true);
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={(event) => {
+        if (isLocked) {
+          return;
+        }
         event.preventDefault();
         setIsDragging(false);
         handleFiles(event.dataTransfer.files);
@@ -935,7 +870,7 @@ function DocumentUploadCard({
         </div>
         <span className="status-chip compact-chip">
           <span className={`status-dot ${uploadState === "idle" && document ? "" : "status-dot-warm"}`} />
-          {getUploadStateLabel(uploadState, Boolean(document))}
+          {getUploadStateLabel(uploadState, Boolean(document), isLocked)}
         </span>
       </div>
 
@@ -956,23 +891,12 @@ function DocumentUploadCard({
       </div>
 
       <div className="document-actions">
-        <input
-          ref={inputRef}
-          className="visually-hidden"
-          type="file"
-          accept={accept}
-          onChange={(event) => handleFiles(event.target.files)}
-        />
-        <button
-          className="secondary-button inline"
-          type="button"
-          disabled={uploadState !== "idle"}
-          onClick={() => inputRef.current?.click()}
-        >
+        <input ref={inputRef} className="visually-hidden" type="file" accept={accept} onChange={(event) => handleFiles(event.target.files)} />
+        <button className="secondary-button inline" type="button" disabled={uploadState !== "idle" || isLocked} onClick={() => inputRef.current?.click()}>
           {document ? "Replace file" : "Choose file"}
         </button>
         {document && onDelete ? (
-          <button className="secondary-button inline danger-button" type="button" onClick={onDelete}>
+          <button className="secondary-button inline danger-button" type="button" onClick={onDelete} disabled={isLocked}>
             Remove
           </button>
         ) : null}
@@ -984,7 +908,7 @@ function DocumentUploadCard({
 function OcrPreviewCard({
   extraction,
 }: Readonly<{
-  extraction: PassportOcrExtraction | PassportOcrResponse;
+  extraction: PassportOcrPreview;
 }>) {
   const fields = extraction.extracted_fields;
 
@@ -1003,7 +927,7 @@ function OcrPreviewCard({
         </span>
       </div>
       <div className="ocr-field-grid">
-        <span>{fields.first_name || "Applicant"} {fields.last_name}</span>
+        <span>{`${fields.first_name || "Applicant"} ${fields.last_name}`.trim()}</span>
         <span>{fields.passport_number || "Passport number pending"}</span>
         <span>{fields.nationality || "Nationality pending"}</span>
         <span>{fields.expiry_date || "Expiry date pending"}</span>
@@ -1011,19 +935,6 @@ function OcrPreviewCard({
       <ul className="bulletless compact">
         {extraction.advisory_notes.map((note) => (
           <li key={note}>{note}</li>
-        ))}
-      </ul>
-    </article>
-  );
-}
-
-function ReviewBlock({ title, content }: Readonly<{ title: string; content: string[] }>) {
-  return (
-    <article className="review-block">
-      <strong>{title}</strong>
-      <ul className="bulletless compact">
-        {content.map((item) => (
-          <li key={`${title}-${item}`}>{item}</li>
         ))}
       </ul>
     </article>
@@ -1062,7 +973,7 @@ function buildSavedLabel(lastSyncedAt: string): string {
     return "Ready to edit";
   }
 
-  return `Last synced ${new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSyncedAt))}`;
+  return `Last synced ${formatDateTime(lastSyncedAt)}`;
 }
 
 function resolveSaveMessage(mode: SaveMode, currentStep: number): string {
@@ -1109,10 +1020,7 @@ function buildProfilePayloadFromDraft(draft: ApplicationFormData): ProfilePayloa
   };
 }
 
-function mergeOcrIntoDraft(
-  currentDraft: ApplicationFormData,
-  extraction: PassportOcrResponse,
-): ApplicationFormData {
+function mergeOcrIntoDraft(currentDraft: ApplicationFormData, extraction: PassportOcrResponse): ApplicationFormData {
   const { extracted_fields: extractedFields } = extraction;
 
   return {
@@ -1134,6 +1042,64 @@ function mergeOcrIntoDraft(
   };
 }
 
+function buildReviewSections(
+  draft: ApplicationFormData,
+  documents: ApplicationDocument[],
+  stepCompletion: Record<number, boolean>,
+): ReviewSection[] {
+  return [
+    {
+      step: 1,
+      title: "Personal details",
+      description: "Identity and applicant profile",
+      isComplete: stepCompletion[1],
+      items: [
+        { label: "Full name", value: `${draft.personal.first_name} ${draft.personal.last_name}`.trim() || "Not filled yet" },
+        { label: "Date of birth", value: draft.personal.date_of_birth || "Pending" },
+        { label: "Nationality", value: draft.personal.nationality || "Pending" },
+        { label: "Occupation", value: draft.personal.occupation || "Pending" },
+      ],
+    },
+    {
+      step: 2,
+      title: "Passport",
+      description: "Passport identity and validity",
+      isComplete: stepCompletion[2],
+      items: [
+        { label: "Passport number", value: draft.passport.passport_number || "Pending" },
+        { label: "Issuing country", value: draft.passport.issuing_country || "Pending" },
+        { label: "Issue date", value: draft.passport.issue_date || "Pending" },
+        { label: "Expiry date", value: draft.passport.expiry_date || "Pending" },
+      ],
+    },
+    {
+      step: 3,
+      title: "Travel plan",
+      description: "Arrival, stay, and accommodation",
+      isComplete: stepCompletion[3],
+      items: [
+        { label: "Arrival date", value: draft.travel.intended_arrival_date || "Pending" },
+        { label: "Port of entry", value: draft.travel.port_of_entry || "Pending" },
+        { label: "Stay duration", value: draft.travel.stay_duration_days ? `${draft.travel.stay_duration_days} days` : "Pending" },
+        { label: "Accommodation", value: draft.travel.accommodation_address || "Pending" },
+      ],
+    },
+    {
+      step: 4,
+      title: "Documents",
+      description: "Uploaded files and readiness checks",
+      isComplete: stepCompletion[4],
+      items: DOCUMENT_CARDS.map((card) => {
+        const document = documents.find((item) => item.document_type === card.type);
+        return {
+          label: card.title,
+          value: document ? `${document.file_name} | ${formatFileSize(document.file_size_bytes)}` : "Pending",
+        };
+      }),
+    },
+  ];
+}
+
 function getDocumentFieldPath(documentType: DocumentType): string {
   switch (documentType) {
     case "passport_scan":
@@ -1147,7 +1113,11 @@ function getDocumentFieldPath(documentType: DocumentType): string {
   }
 }
 
-function getUploadStateLabel(uploadState: UploadState, hasDocument: boolean): string {
+function getUploadStateLabel(uploadState: UploadState, hasDocument: boolean, isLocked: boolean): string {
+  if (isLocked) {
+    return hasDocument ? "Locked" : "Sealed";
+  }
+
   switch (uploadState) {
     case "compressing":
       return "Compressing";
@@ -1158,6 +1128,17 @@ function getUploadStateLabel(uploadState: UploadState, hasDocument: boolean): st
     default:
       return hasDocument ? "Uploaded" : "Required";
   }
+}
+
+function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return "Pending";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function formatFileSize(bytes: number): string {

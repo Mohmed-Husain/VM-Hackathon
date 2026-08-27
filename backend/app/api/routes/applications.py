@@ -11,6 +11,7 @@ from app.schemas.application import (
     ApplicationSummaryResponse,
     CreateApplicationRequest,
     SaveDraftRequest,
+    SubmitApplicationResponse,
 )
 from app.services.application_service import ApplicationService
 
@@ -52,3 +53,12 @@ async def save_application_draft(
     session: AsyncSession = Depends(get_db_session),
 ) -> ApplicationDetailResponse:
     return await service.save_draft(session, current_user, application_id, payload)
+
+
+@router.post("/{application_id}/submit", response_model=SubmitApplicationResponse)
+async def submit_application(
+    application_id: UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> SubmitApplicationResponse:
+    return await service.submit_application(session, current_user, application_id)

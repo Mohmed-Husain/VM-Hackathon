@@ -5,6 +5,7 @@ import type {
   ApplicationSummary,
   CreateApplicationRequest,
   SaveDraftRequest,
+  SubmitApplicationResponse,
 } from "@/types/application";
 import type { ApplicationDocument, DocumentType, PassportOcrResponse } from "@/types/document";
 import type { ApplicantProfile, ProfilePayload } from "@/types/profile";
@@ -227,4 +228,18 @@ export async function askVisaAssistant(accessToken: string, payload: AiChatReque
   });
 
   return parseJson<AiChatResponse>(response);
+}
+
+export async function submitApplication(
+  accessToken: string,
+  applicationId: string,
+): Promise<SubmitApplicationResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/applications/${applicationId}/submit`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return parseJson<SubmitApplicationResponse>(response);
 }

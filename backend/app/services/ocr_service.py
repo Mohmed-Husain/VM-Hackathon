@@ -25,6 +25,11 @@ class OcrService:
         application = await self.application_repository.get_for_user(session, payload.application_id, current_user.id)
         if application is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+        if application.status == "Submitted":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Submitted applications are sealed and OCR can no longer update them.",
+            )
 
         if payload.document_id is not None:
             document = await self.document_repository.get_for_application(session, application.id, payload.document_id)

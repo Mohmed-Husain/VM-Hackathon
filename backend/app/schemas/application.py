@@ -61,6 +61,14 @@ class SaveDraftRequest(BaseModel):
     form_data: ApplicationFormData
 
 
+class SubmitApplicationResponse(BaseModel):
+    application_id: UUID
+    status: ApplicationStatus
+    submitted_at: datetime
+    submitted_snapshot: dict
+    message: str
+
+
 class ValidationIssueResponse(BaseModel):
     field: str
     messages: list[str]
@@ -96,5 +104,7 @@ class ApplicationDetailResponse(BaseModel):
     progress_percentage: int
     form_data: ApplicationFormData
     validation_summary: ValidationSummaryResponse
+    submitted_at: datetime | None = None
+    submitted_snapshot: dict | None = None
     created_at: datetime
     updated_at: datetime

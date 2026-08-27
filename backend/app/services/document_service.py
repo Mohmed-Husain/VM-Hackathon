@@ -52,6 +52,11 @@ class DocumentService:
         application = await self.application_repository.get_for_user(session, application_id, current_user.id)
         if application is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+        if application.status == "Submitted":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Submitted applications are sealed and documents can no longer be changed.",
+            )
         if document_type not in ALLOWED_DOCUMENT_TYPES:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported document type.")
         if not file.filename:
@@ -98,11 +103,17 @@ class DocumentService:
         if document is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
+        application = await self.application_repository.get_for_user(session, document.application_id, current_user.id)
+        if application is not None and application.status == "Submitted":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Submitted applications are sealed and documents can no longer be changed.",
+            )
+
         file_path = settings.storage_root / document.storage_path
         if file_path.exists():
             file_path.unlink()
 
-        application = await self.application_repository.get_for_user(session, document.application_id, current_user.id)
         await self.document_repository.delete(session, document.id)
         remaining_documents = await self.document_repository.list_for_application(session, document.application_id)
 

@@ -54,6 +54,16 @@ export type ValidationSummary = {
   steps: StepValidation[];
 };
 
+export type SubmittedSnapshot = {
+  application_id: string;
+  user_id: string;
+  visa_category: VisaCategory;
+  status: ApplicationStatus;
+  submitted_at: string;
+  form_data: ApplicationFormData;
+  validation_summary: ValidationSummary;
+};
+
 export type ApplicationFormData = {
   personal: PersonalDraft;
   passport: PassportDraft;
@@ -75,6 +85,8 @@ export type ApplicationDetail = ApplicationSummary & {
   user_id: string;
   form_data: ApplicationFormData;
   validation_summary: ValidationSummary;
+  submitted_at?: string | null;
+  submitted_snapshot?: SubmittedSnapshot | null;
   created_at: string;
 };
 
@@ -85,6 +97,14 @@ export type CreateApplicationRequest = {
 export type SaveDraftRequest = {
   current_step: number;
   form_data: ApplicationFormData;
+};
+
+export type SubmitApplicationResponse = {
+  application_id: string;
+  status: ApplicationStatus;
+  submitted_at: string;
+  submitted_snapshot: SubmittedSnapshot;
+  message: string;
 };
 
 export type LocalDraftSnapshot = {

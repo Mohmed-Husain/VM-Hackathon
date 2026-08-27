@@ -23,6 +23,8 @@ class Application(Base):
     current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     progress_percentage: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     form_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    submitted_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

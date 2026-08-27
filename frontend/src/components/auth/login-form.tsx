@@ -67,7 +67,10 @@ export function LoginForm() {
   return (
     <section className="auth-card">
       <h2 className="card-title">Sign in to the demo portal</h2>
-      <p className="card-copy">Use one of the seeded applicants to enter the dashboard and verify the auth module.</p>
+      <p className="card-copy">
+        Use one of the seeded applicants to explore the dashboard, wizard, OCR flow, grounded assistant, and sealed
+        submission experience.
+      </p>
       {serverError ? <div className="banner-error">{serverError}</div> : null}
       <form onSubmit={handleSubmit} noValidate>
         <div className="field-group">

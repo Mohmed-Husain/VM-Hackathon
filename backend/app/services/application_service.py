@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -13,6 +14,7 @@ from app.schemas.application import (
     CreateApplicationRequest,
     SaveDraftRequest,
     StepValidationResponse,
+    SubmitApplicationResponse,
     ValidationIssueResponse,
     ValidationSummaryResponse,
 )
@@ -74,6 +76,11 @@ class ApplicationService:
         application = await self.repository.get_for_user(session, application_id, current_user.id)
         if application is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+        if application.status == "Submitted":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Submitted applications are sealed and can no longer be edited.",
+            )
 
         if application.current_step == payload.current_step and (application.form_data or {}) == payload.form_data.model_dump():
             return self._serialize_detail(application)
@@ -87,6 +94,63 @@ class ApplicationService:
         await session.commit()
         await session.refresh(application)
         return self._serialize_detail(application)
+
+    async def submit_application(
+        self,
+        session: AsyncSession,
+        current_user: User,
+        application_id: UUID,
+    ) -> SubmitApplicationResponse:
+        application = await self.repository.get_for_user(session, application_id, current_user.id)
+        if application is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+        if application.status == "Submitted":
+            if application.submitted_at is None or application.submitted_snapshot is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This application is marked submitted but its sealed snapshot is unavailable.",
+                )
+            return SubmitApplicationResponse(
+                application_id=application.id,
+                status="Submitted",
+                submitted_at=application.submitted_at,
+                submitted_snapshot=application.submitted_snapshot,
+                message="Application was already submitted.",
+            )
+
+        form_data = ApplicationFormData.model_validate(application.form_data or {})
+        validation_summary = build_validation_summary(form_data)
+        if not validation_summary.is_review_ready or not validation_summary.step_completion[5]:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The application is not ready for submission. Complete all steps and accept the declaration first.",
+            )
+
+        submitted_at = datetime.now(timezone.utc)
+        application.current_step = 5
+        application.progress_percentage = 100
+        application.status = "Submitted"
+        application.submitted_at = submitted_at
+        application.submitted_snapshot = {
+            "application_id": str(application.id),
+            "user_id": str(application.user_id),
+            "visa_category": application.visa_category,
+            "status": "Submitted",
+            "submitted_at": submitted_at.isoformat(),
+            "form_data": form_data.model_dump(),
+            "validation_summary": self._serialize_validation_summary(validation_summary).model_dump(mode="json"),
+        }
+
+        await session.commit()
+        await session.refresh(application)
+
+        return SubmitApplicationResponse(
+            application_id=application.id,
+            status="Submitted",
+            submitted_at=submitted_at,
+            submitted_snapshot=application.submitted_snapshot,
+            message="Application sealed successfully. Payment remains hidden in this MVP, so submission completes without checkout.",
+        )
 
     def _serialize_summary(self, application: Application) -> ApplicationSummaryResponse:
         form_data = ApplicationFormData.model_validate(application.form_data or {})
@@ -112,6 +176,8 @@ class ApplicationService:
             progress_percentage=validation_summary.progress_percentage,
             form_data=form_data,
             validation_summary=self._serialize_validation_summary(validation_summary),
+            submitted_at=application.submitted_at,
+            submitted_snapshot=application.submitted_snapshot,
             created_at=application.created_at,
             updated_at=application.updated_at,
         )
