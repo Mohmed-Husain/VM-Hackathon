@@ -6,12 +6,17 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=PROJECT_ROOT / ".env",
+        env_file=(
+            BACKEND_DIR / ".env",
+            PROJECT_ROOT / ".env",
+            ".env",
+        ),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -27,12 +32,12 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     backend_public_url: str = "http://localhost:8000"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    openai_model: str = "gpt-5-mini"
+    openai_model: str = "gpt-4o-mini"
     payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
     auto_create_tables: bool = True
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: str | list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", mode="after")
     @classmethod
     def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, str):
@@ -59,16 +64,23 @@ class Settings(BaseSettings):
 
         if sslmode and sslmode.lower() != "disable":
             connect_args["ssl"] = ssl.create_default_context()
+            if sslmode.lower() in ("require", "prefer", "allow"):
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                connect_args["ssl"] = ctx
+            else:
+                connect_args["ssl"] = ssl.create_default_context()
 
         return connect_args
 
     @property
     def storage_root(self) -> Path:
-        return PROJECT_ROOT / "backend" / "storage"
+        return BACKEND_DIR / "storage"
 
     @property
     def visa_rules_path(self) -> Path:
-        return PROJECT_ROOT / "backend" / "app" / "data" / "official_visa_rules.json"
+        return BACKEND_DIR / "app" / "data" / "official_visa_rules.json"
 
 
 @lru_cache

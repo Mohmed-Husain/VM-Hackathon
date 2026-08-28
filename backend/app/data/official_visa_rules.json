@@ -1,108 +1,239 @@
 {
   "topics": [
     {
+      "id": "website-navigation-guide",
+      "title": "Navigating the Official Portal and Interactive Action Tabs",
+      "source_label": "Indian Visa Online Portal Layout",
+      "source_path": "Homepage Navigation & Action Bar",
+      "summary": "Step-by-step guidance on navigating the official portal options, action tabs, and support modules.",
+      "content": "To navigate the official e-Visa portal (indianvisaonline.gov.in): 1) To start a new application, click 'Apply here for e-visa' on the bottom action bar or central panel. 2) To see an example form before applying, click 'Sample e-Visa Application'. 3) To resume an unfinished form, select 'Complete Partially Filled Application Form' and enter your Application ID. 4) To check payment status or finish a pending payment, select 'Verify Payment/Pay e-Visa Fee'. 5) To track your application progress, click 'Check your Visa Status'. 6) Once approved, select 'Print e-Visa Application' to download your Electronic Travel Authorization (ETA). 7) If you receive an email regarding document errors, select 'Reupload Data' to upload revised files. 8) Use the left-side panel to view eligible countries, step-by-step instructions, FAQs, authorized entry checkposts, and bank helpdesk numbers.",
+      "keywords": ["navigate", "website guide", "action buttons", "apply here", "sample application", "check status", "print eta", "reupload data", "sidebar navigation"]
+    },
+    {
+      "id": "afghan-national-portal",
+      "title": "Dedicated Application Portal for Afghan Nationals",
+      "source_label": "Ministry of Home Affairs Directive",
+      "source_path": "Top Advisory Banner",
+      "summary": "Afghan nationals must apply through a specialized sub-portal and are excluded from the standard e-Visa workflow.",
+      "content": "Afghan passport holders are not permitted to use the standard e-Visa application portal. Under Ministry of Home Affairs directives, Afghan nationals must submit their online visa applications exclusively through the specialized AFGHAN Portal at https://indianvisaonline.gov.in/avisa. Submissions made on the general portal by Afghan citizens will be invalidated.",
+      "keywords": ["afghanistan", "afghan national", "avisa portal", "mha directive", "special portal", "online visa"]
+    },
+    {
+      "id": "e-arrival-card-requirement",
+      "title": "Mandatory Digital e-Arrival Card Pre-Departure Filing",
+      "source_label": "Bureau of Immigration Notification",
+      "source_path": "Top Advisory Banner",
+      "summary": "Foreign travelers and OCI cardholders must submit an online e-Arrival Card within 72 hours prior to arrival.",
+      "content": "All foreign nationals and Overseas Citizen of India (OCI) cardholders must complete and submit a digital e-Arrival Card online within 72 hours prior to their arrival in India. This disembarkation filing can be completed via boi.gov.in, indianvisaonline.gov.in/earrival, or through the official 'Indian Visa Su-Swagatam' mobile app. This card records arrival information and does not replace a valid visa.",
+      "keywords": ["e-arrival card", "72 hours", "disembarkation", "boi.gov.in", "su-swagatam app", "oci cardholder", "pre-departure"]
+    },
+    {
       "id": "apply-in-advance",
-      "title": "Apply in advance",
+      "title": "Application Timeline and Advance Submission Windows",
       "source_label": "Indian Visa Online e-Visa Instructions",
       "source_path": "Instructions for Applicant",
-      "summary": "Eligible applicants should apply online at least 4 days before arrival, and medical categories use a 120-day arrival window.",
-      "content": "The official e-Visa guidance says eligible applicants should apply a minimum of 4 days before the date of arrival. e-Medical and e-Medical Attendant applicants can select an arrival date within a 120-day window.",
-      "keywords": ["apply", "advance", "4 days", "arrival", "when", "120 days", "medical"]
+      "summary": "Apply at least 4 days prior to arrival. Medical, attendant, and conference categories allow up to a 120-day submission window.",
+      "content": "Eligible applicants must apply online at least 4 calendar days in advance of their planned arrival date in India. For 30-day e-Tourist and e-Business visas, applications must be submitted within this minimum 4-day window. For e-Medical, e-Medical Attendant, and e-Conference visas, applicants can submit applications up to 120 days in advance of their selected arrival date.",
+      "keywords": ["apply advance", "4 days", "arrival date", "120 days", "e-medical window", "e-conference window", "submission timeline"]
     },
     {
       "id": "passport-validity",
-      "title": "Passport validity and blank pages",
+      "title": "Passport Validity Standards and Blank Page Requirements",
       "source_label": "Indian Visa Online e-Visa FAQ",
-      "source_path": "Eligibility",
-      "summary": "Passports should have at least six months validity and at least two blank pages.",
-      "content": "The official FAQ says the passport should have at least six months validity at the time of application and at least two blank pages for stamping by the Immigration Officer.",
-      "keywords": ["passport", "validity", "six months", "expiry", "blank pages", "stamping"]
-    },
-    {
-      "id": "required-uploads",
-      "title": "Required uploads and document language",
-      "source_label": "Indian Visa Online e-Visa Instructions",
-      "source_path": "Document Required",
-      "summary": "Applicants must upload a recent photograph and the passport bio page, and supporting documents should be in English.",
-      "content": "The official portal requires a recent front-facing photograph with a light or white background and the passport bio page containing personal details. It also says supporting documents such as business cards or invitation letters should be in English.",
-      "keywords": ["documents", "upload", "passport bio page", "supporting", "english", "required", "photo"]
+      "source_path": "Eligibility Guidelines",
+      "summary": "Passports must have at least 6 months remaining validity from the arrival date and a minimum of two blank pages.",
+      "content": "An applicant's ordinary passport must have at least six (6) months of remaining validity from the date of arrival in India. Additionally, the passport must contain at least two (2) blank pages for physical entry and exit stamps applied by immigration officers at checkpoints.",
+      "keywords": ["passport validity", "six months", "blank pages", "stamping", "immigration officer", "ordinary passport", "expiry date"]
     },
     {
       "id": "photo-specifications",
-      "title": "Digital photo specifications",
+      "title": "Digital Photograph Upload Specifications",
       "source_label": "Indian Visa Online e-Visa Instructions",
       "source_path": "Photo Requirements",
-      "summary": "Photo uploads should be JPEG, 10 KB to 1 MB, square, front-facing, and on a plain light or white background.",
-      "content": "The official portal says the digital photo should be JPEG, between 10 KB and 1 MB, equal height and width, front-facing, eyes open, without spectacles, and against a plain light-colored or white background with no shadows or borders.",
-      "keywords": ["photo", "jpeg", "1 mb", "white background", "square", "front facing", "spectacles"]
+      "summary": "Photo uploads must be square JPEG files between 10 KB and 1 MB, showing a front view on a white background without spectacles.",
+      "content": "The photo upload must be in JPEG format, sized between 10 KB and 1 MB. Dimensions must maintain a 1:1 square aspect ratio (minimum 350x350 pixels). The image must show a full frontal view of the face with eyes open, natural expression, centered head, plain white or light-colored background, no shadows, no borders, and strictly without spectacles or eyewear.",
+      "keywords": ["photo requirements", "jpeg", "1 mb", "10 kb", "square photo", "white background", "without spectacles", "350x350"]
     },
     {
       "id": "passport-scan-specifications",
-      "title": "Passport bio page file guidance",
+      "title": "Passport Bio Page Document Upload Rules",
       "source_label": "Indian Visa Online e-Visa Instructions",
       "source_path": "Document Required",
-      "summary": "The passport bio page is required, and the official site commonly lists PDF uploads up to 300 KB for that document.",
-      "content": "The official guidance lists the passport bio page as a mandatory upload and commonly shows PDF support from 10 KB to 300 KB for the scanned bio page.",
-      "keywords": ["passport scan", "bio page", "pdf", "300 kb", "passport page", "file size"]
+      "summary": "Passport biographical pages must be uploaded as PDF files between 10 KB and 300 KB, clearly showing personal details and the MRZ zone.",
+      "content": "Applicants must upload a clear PDF scan of their passport biographical page. File size must be between 10 KB and 300 KB. The scan must be uncropped, clearly legible, and show all personal details, photograph, signature, and the complete Machine Readable Zone (MRZ) across the bottom.",
+      "keywords": ["passport scan", "bio page", "pdf format", "300 kb", "10 kb", "mrz zone", "document upload"]
     },
     {
-      "id": "eta-travel",
-      "title": "ETA and travel passport guidance",
+      "id": "required-uploads",
+      "title": "Required Supporting Documents and Language Standards",
       "source_label": "Indian Visa Online e-Visa Instructions",
-      "source_path": "Post-submission Guidance",
-      "summary": "Applicants should carry a copy of the ETA and travel with the same passport used for the application.",
-      "content": "The official portal tells applicants to carry a copy of the Electronic Travel Authorization and confirm ETA status before travel. It also says travelers should use the same passport that was used for the e-Visa application.",
-      "keywords": ["eta", "travel", "same passport", "granted", "print", "authorization"]
+      "source_path": "Document Required",
+      "summary": "Mandatory uploads include a photo and passport scan, plus category-specific supporting documents in PDF format and English.",
+      "content": "All applicants must upload a JPEG photo and a PDF scan of their passport bio page. Depending on the visa sub-category, additional supporting documents are required in PDF format (10 KB to 300 KB): business cards or invitation letters for e-Business; hospital letters for e-Medical; and event clearances for e-Conference. All supporting documents must be in English or accompanied by an official English translation.",
+      "keywords": ["required documents", "supporting documents", "pdf", "english translation", "business card", "hospital letter", "invitation letter"]
     },
     {
-      "id": "eligibility-categories",
-      "title": "MVP categories versus official categories",
-      "source_label": "Smart eVisa MVP",
-      "source_path": "Prototype Scope",
-      "summary": "This MVP exposes a smaller category list than the official portal so the hackathon demo stays focused.",
-      "content": "The production Indian e-Visa portal supports a wider category set. This MVP intentionally narrows that list to a few demo-friendly categories and uses them as simplified prototypes rather than real fee or eligibility advice.",
-      "keywords": ["category", "categories", "tourist", "business", "mvp", "prototype", "fees"]
+      "id": "4-step-application-process",
+      "title": "Core Four-Step e-Visa Application Workflow",
+      "source_label": "Indian Visa Online Portal Workflow",
+      "source_path": "Main Landing Interface",
+      "summary": "The application process consists of four steps: online form submission, fee payment, electronic authorization issuance, and airport stamping.",
+      "content": "The e-Visa issuance process follows a 4-step sequence: Step 1) Apply Online by filling demographic data and uploading JPEG photo and PDF passport scan; Step 2) Pay e-Visa Fee Online using credit card, debit card, or payment wallet; Step 3) Receive ETA Online via email upon government approval; Step 4) Fly to India by printing the Electronic Travel Authorization (ETA) and presenting it at immigration for biometric verification and passport stamping.",
+      "keywords": ["application workflow", "apply online", "pay visa fee", "receive eta", "fly to india", "immigration stamping", "4 steps"]
     },
     {
-      "id": "payment-hidden",
-      "title": "Payment is hidden in the MVP flow",
-      "source_label": "Smart eVisa MVP",
-      "source_path": "Prototype Scope",
-      "summary": "Payment is intentionally hidden for now, even though the final SRS includes it later.",
-      "content": "This implementation keeps the payment experience out of the visible applicant flow for now. The review step remains available, but the payment panel stays hidden until the payments module is turned on later.",
-      "keywords": ["payment", "pay", "gateway", "hidden", "later", "review", "submit"]
+      "id": "e-tourist-visa",
+      "title": "e-Tourist Visa Sub-Categories and Permitted Activities",
+      "source_label": "Indian Visa Online Advisory",
+      "source_path": "Visa Services - e-Tourist",
+      "summary": "e-Tourist visas are available in 30-day, 1-year, and 5-year validity options for tourism, social visits, yoga, and short informal courses.",
+      "content": "The e-Tourist visa offers three options: 1) 30-Day e-Tourist Visa featuring double entry, non-extendable and non-convertible; 2) 1-Year (365-Day) e-Tourist Visa with multiple entries and continuous stay up to 90 days (180 days for US, UK, Canada, Japan citizens); 3) 5-Year e-Tourist Visa with multiple entries subject to identical stay limits. Permitted activities include tourism, sightseeing, casual social visits, short non-certified yoga programs, and non-formal courses under 6 months duration.",
+      "keywords": ["e-tourist visa", "30 days", "1 year", "5 years", "multiple entry", "90 days stay", "180 days stay", "yoga program"]
+    },
+    {
+      "id": "e-business-visa",
+      "title": "e-Business Visa Regulations and Continuous Stay Limits",
+      "source_label": "Indian Visa Online Advisory",
+      "source_path": "Visa Services - e-Business",
+      "summary": "e-Business visas provide 1-year multiple entry access for commercial visits, requiring FRRO registration if continuous stay exceeds 180 days.",
+      "content": "The e-Business Visa (e-B1 V) is valid for 1 year (365 days) from the ETA grant date and allows multiple entries. Continuous stay during each business visit is capped at 180 days. If business operations require a continuous stay exceeding 180 days, mandatory registration with the Foreigners Regional Registration Office (FRRO/FRO) must take place within two weeks after the 180-day mark. Uploading a business card or host invitation letter is required.",
+      "keywords": ["e-business visa", "1 year validity", "180 days limit", "frro registration", "business card", "invitation letter", "commercial activity"]
+    },
+    {
+      "id": "e-medical-and-attendant-visa",
+      "title": "e-Medical and e-Medical Attendant Visa Protocols",
+      "source_label": "Indian Visa Online Advisory",
+      "source_path": "Visa Services - e-Medical",
+      "summary": "e-Medical visas permit triple-entry treatment in Indian hospitals, with up to two attendant visas granted per medical patient.",
+      "content": "e-Medical Visas are granted to foreign patients seeking medical treatment in recognized Indian hospitals, allowing triple entries within a 60-day or 1-year framework. Up to two (2) e-Medical Attendant Visas (e-M2 V) can be granted co-terminus against a single primary e-Medical Visa holder. Applicants must upload an official letter from the treating hospital in India on its letterhead specifying tentative admission dates and medical purpose.",
+      "keywords": ["e-medical visa", "e-medical attendant", "triple entry", "hospital letter", "attendant limit", "60 days", "medical treatment"]
+    },
+    {
+      "id": "e-conference-visa",
+      "title": "e-Conference Visa Rules and Mandatory Clearances",
+      "source_label": "Indian Visa Online Advisory",
+      "source_path": "Visa Services - e-Conference",
+      "summary": "e-Conference visas allow 30-day single entry for government-organized conferences, requiring MEA and MHA clearances.",
+      "content": "The e-Conference Visa permits single-entry travel to attend international conferences, seminars, or workshops organized by Indian government ministries, public sector undertakings, or recognized institutions. Valid for 30 days from entry. Mandatory uploads include an invitation letter from the organizer, Political Clearance from the Ministry of External Affairs (MEA), and Event Clearance from the Ministry of Home Affairs (MHA).",
+      "keywords": ["e-conference visa", "30 days", "single entry", "mea clearance", "mha clearance", "organizer invitation", "seminar"]
+    },
+    {
+      "id": "e-student-and-family-visa",
+      "title": "e-Student and e-Family Visa Category Rules",
+      "source_label": "Indian Visa Online Portal",
+      "source_path": "Visa Categories",
+      "summary": "e-Student visas cover short-term academic courses, while e-Family visas grant entry privileges for accompanying family members.",
+      "content": "The e-Student Visa applies to foreign nationals pursuing short-term structured academic courses or training at recognized Indian institutions. The e-Family Visa (e-SX V) provides entry privileges valid for up to 1 year with multiple entries for eligible family members joining primary visa holders or foreign residents in India, subject to uploading proof of relationship.",
+      "keywords": ["e-student visa", "e-family visa", "short term study", "academic course", "dependent family", "multiple entry"]
+    },
+    {
+      "id": "e-transit-and-miscellaneous-visa",
+      "title": "e-Transit and e-Miscellaneous Visa Conditions",
+      "source_label": "Indian Visa Online Portal",
+      "source_path": "Visa Categories",
+      "summary": "e-Transit visas allow 15-day double-entry transit, while e-Miscellaneous visas cover short production investment visits.",
+      "content": "The e-Transit Visa is intended for travelers transiting through India to a third country, offering a stay of up to 15 days with double-entry privileges upon presenting confirmed onward travel tickets. The e-Miscellaneous Visa (e-X1 V) covers specific short-term purposes including production investments and specialized projects, granting 3-month or 6-month validity with multiple entries.",
+      "keywords": ["e-transit visa", "15 days", "double entry", "onward ticket", "e-miscellaneous visa", "e-production investment", "3 months"]
+    },
+    {
+      "id": "emergency-visa-scam-advisory",
+      "title": "Official Anti-Fraud Advisory on Emergency Fees",
+      "source_label": "Government of India Advisory",
+      "source_path": "Center Advisory Panel",
+      "summary": "The Government of India charges no emergency or express processing fees and warns against unauthorized commercial websites.",
+      "content": "The Government of India maintains no provision for charging emergency fees, express processing surcharges, or expedited delivery costs for e-Visas. Applicants are warned that commercial websites claiming to offer guaranteed emergency or fast-track e-Visas in exchange for extra fees are unauthorized third parties. Official e-Visa fees are fixed and published directly on the portal.",
+      "keywords": ["emergency visa", "express visa", "no extra fee", "fraud warning", "third party scam", "official government policy"]
+    },
+    {
+      "id": "partially-filled-application-retrieval",
+      "title": "Saving and Retrieving Partially Completed Applications",
+      "source_label": "Indian Visa Online Portal Features",
+      "source_path": "Bottom Action Bar",
+      "summary": "Applicants can save draft applications and resume completion later using their unique Application ID.",
+      "content": "The portal supports saving unfinished forms. If an applicant cannot finish the form in one session, progress can be saved. To resume later, click 'Complete Partially Filled Application Form' on the homepage action bar and enter the system-generated Application ID provided on page one along with passport details.",
+      "keywords": ["partially filled application", "save draft", "application id", "resume form", "bottom navigation"]
+    },
+    {
+      "id": "document-discrepancy-reupload",
+      "title": "Document Verification Scrutiny and Re-upload System",
+      "source_label": "Indian Visa Online Portal Features",
+      "source_path": "Scrutiny Workflow",
+      "summary": "Applications flagged for document discrepancies receive an email within 24 hours directing them to the Reupload Data tool.",
+      "content": "After submission, applications undergo verification scrutiny. If an uploaded photo or passport scan is blurred, unreadable, or non-compliant, the applicant receives an email notification within 24 hours. The applicant must access the 'Reupload Data' action tab on the portal homepage to upload corrected JPEG or PDF files using their Application ID and date of birth.",
+      "keywords": ["reupload data", "scrutiny notice", "document discrepancy", "24 hours email", "corrected scan", "blurry photo"]
+    },
+    {
+      "id": "visa-status-and-eta-printing",
+      "title": "Application Status Tracking and Official ETA Generation",
+      "source_label": "Indian Visa Online Portal Features",
+      "source_path": "Bottom Action Bar",
+      "summary": "Applicants can track processing status online and print their Electronic Travel Authorization prior to travel.",
+      "content": "Applicants can monitor processing status using the 'Check your Visa Status' button by entering their Application ID and Passport Number. Once approved (status showing 'GRANTED'), the traveler must use the 'Print e-Visa Application' feature on the homepage to generate a physical paper copy of the Electronic Travel Authorization (ETA) to present at immigration checkpoints.",
+      "keywords": ["check visa status", "print eta", "electronic travel authorization", "granted status", "paper copy requirement"]
+    },
+    {
+      "id": "payment-verification-and-gateways",
+      "title": "Payment Gateway Processing and Transaction Verification",
+      "source_label": "Indian Visa Online Helpdesk",
+      "source_path": "Payment Related Section",
+      "summary": "Fees are processed via SBI ePay or Axis Bank with a 3% bank charge. Use 'Verify Payment' for interrupted sessions.",
+      "content": "e-Visa fee payments are processed via official gateways including SBI ePay and Axis Bank, supporting international credit cards, debit cards, and digital wallets. A 3% bank charge is added to the base visa fee. If a network timeout or unconfirmed transaction occurs, applicants must use the 'Verify Payment/Pay e-Visa Fee' portal button before re-attempting payment to avoid duplicate charges.",
+      "keywords": ["payment gateway", "sbi epay", "axis bank", "verify payment", "transaction fee", "credit card payment"]
+    },
+    {
+      "id": "authorized-immigration-checkpoints",
+      "title": "Designated e-Visa Air and Sea Ports of Entry",
+      "source_label": "Indian Visa Online Instructions",
+      "source_path": "Authorized Immigration Checkposts",
+      "summary": "e-Visa holders must enter India strictly through designated airports and seaports. Departure is permitted via any authorized ICP.",
+      "content": "Holders of an approved ETA are restricted to entering India strictly through 28+ designated international airports (such as Delhi, Mumbai, Bengaluru, Chennai, Kolkata, Hyderabad, Cochin) and 5 designated seaports (Mumbai, Cochin, Goa, Mangalore, Chennai). Initial entry through land border posts is prohibited. However, foreign travelers may exit India through any authorized Immigration Check Post (ICP).",
+      "keywords": ["authorized checkpoints", "designated airports", "seaports", "entry points", "land border restriction", "immigration check post"]
+    },
+    {
+      "id": "official-helpdesk-and-support",
+      "title": "Official 24/7 Helpdesk and Escalation Support",
+      "source_label": "Indian Visa Online Helpdesk",
+      "source_path": "Left Sidebar Support",
+      "summary": "24/7 technical and payment support lines are available via international telephone numbers and official email.",
+      "content": "The e-Visa portal maintains official support channels: General visa inquiries are handled 24/7 via phone at +91 82 7808 7808 and email at indian-evisa@gov.in. Dedicated payment gateway helpdesks are operated by SBI ePay (+91-022-65361671) and Axis Bank (+91 1800-419-0073), along with country-specific toll-free hotlines for US, UK, UAE, Australia, and other regions.",
+      "keywords": ["evisa helpdesk", "support phone", "support email", "sbi epay helpdesk", "axis bank helpdesk", "24/7 support"]
     }
   ],
   "step_suggestions": {
     "default": [
-      "What documents do I need before I start?",
-      "How early should I apply for the visa?",
-      "What passport rules should I double-check?"
+      "How do I navigate the e-Visa portal to start a new application?",
+      "What documents and photo specifications do I need to prepare?",
+      "How far in advance should I apply for an Indian e-Visa?"
     ],
     "1": [
-      "What applicant details should match my passport exactly?",
-      "Does nationality have to match the passport bio page?",
-      "Can I edit profile details later?"
+      "Where is the 'Apply here for e-visa' button on the homepage?",
+      "Which e-Visa category best matches my travel plans?",
+      "Are Afghan nationals allowed to apply through the standard portal?"
     ],
     "2": [
-      "How much passport validity do I need?",
-      "Can I travel on a different passport than the one I apply with?",
-      "What fields are auto-filled from OCR?"
+      "What are the exact digital photo upload rules (size, format, glasses)?",
+      "How do I scan and upload my passport bio page in PDF format?",
+      "What supporting documents are needed for e-Business or e-Medical visas?"
     ],
     "3": [
-      "How early should I apply before arrival?",
-      "What travel details matter most in this draft?",
-      "Do I need onward or return travel details?"
+      "What applicant details must match my passport exactly?",
+      "How can I save a partially filled application and resume it later?",
+      "Where do I find my Application ID to complete my draft?"
     ],
     "4": [
-      "What are the passport scan file rules?",
-      "What photo background should I use?",
-      "Do supporting documents need to be in English?"
+      "Which payment gateways are supported and what bank charges apply?",
+      "What should I do if my payment timed out but funds were debited?",
+      "How do I use the 'Verify Payment/Pay e-Visa Fee' action tab?"
     ],
     "5": [
-      "What should I review before submission?",
-      "Is payment available yet in this MVP?",
-      "Should I keep a copy of the final authorization?"
+      "How long does it take to receive approval for my e-Visa application?",
+      "How do I use the 'Reupload Data' tab if I get an email correction notice?",
+      "Where do I check my visa processing status on the portal?"
+    ],
+    "6": [
+      "How do I download and print my ETA using 'Print e-Visa Application'?",
+      "Which airports and seaports in India allow entry for e-Visa holders?",
+      "How do I file the mandatory e-Arrival card within 72 hours of travel?"
     ]
   }
 }
