@@ -201,28 +201,36 @@ class AiService:
     # ── Startup ──────────────────────────────────────────────────────
     def _boot(self) -> None:
         """Initialize LangChain LLM and optionally register with Memori."""
-        if not _LANGCHAIN_OK or not settings.openai_api_key:
-            logger.info("LangChain unavailable or OPENAI_API_KEY not set — rule-based mode only")
-        """Initialize LangChain LLM for DeepSeek and optionally register with Memori."""
-        api_key = settings.deepseek_api_key or os.getenv("DEEPSEEK_API_KEY") or settings.openai_api_key or os.getenv("OPENAI_API_KEY")
-        if not _LANGCHAIN_OK or not api_key:
-            logger.info("LangChain unavailable or DEEPSEEK_API_KEY not set — rule-based mode only")
+        if not _LANGCHAIN_OK:
+            logger.info("LangChain unavailable — rule-based mode only")
             return
 
-        model = settings.deepseek_model or "deepseek-chat"
-        base_url = settings.deepseek_base_url or "https://api.deepseek.com"
+        deepseek_api_key = settings.deepseek_api_key or os.getenv("DEEPSEEK_API_KEY")
+        openai_api_key = settings.openai_api_key or os.getenv("OPENAI_API_KEY")
 
-        self._llm = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            model=model,
-            api_key=api_key,
-            base_url=base_url,
-            max_tokens=500,
-            temperature=0.3,
-        )
-        logger.info("LangChain ChatOpenAI initialized (model=%s)", settings.openai_model)
-        logger.info("LangChain ChatOpenAI initialized for DeepSeek (model=%s, base_url=%s)", model, base_url)
+        if deepseek_api_key:
+            model = settings.deepseek_model or "deepseek-chat"
+            base_url = settings.deepseek_base_url or "https://api.deepseek.com"
+            self._llm = ChatOpenAI(
+                model=model,
+                api_key=deepseek_api_key,
+                base_url=base_url,
+                max_tokens=500,
+                temperature=0.3,
+            )
+            logger.info("LangChain ChatOpenAI initialized for DeepSeek (model=%s, base_url=%s)", model, base_url)
+        elif openai_api_key:
+            model = settings.openai_model
+            self._llm = ChatOpenAI(
+                model=model,
+                api_key=openai_api_key,
+                max_tokens=500,
+                temperature=0.3,
+            )
+            logger.info("LangChain ChatOpenAI initialized for OpenAI (model=%s)", model)
+        else:
+            logger.info("No DEEPSEEK_API_KEY or OPENAI_API_KEY set — rule-based mode only")
+            return
 
         # Register with Memori for background memory extraction
         if _MEMORI_OK and settings.memori_api_key:
