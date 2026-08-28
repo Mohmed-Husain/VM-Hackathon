@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "eVisa Portal | Official Government of India",
   description: "Your official gateway to visit India. Simple, secure and hassle-free electronic visa application portal.",
   icons: {
-    icon: "/assets/emblem.svg",
+    icon: "/assets/Embelem.png",
   },
 };
 

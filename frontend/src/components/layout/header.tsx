@@ -16,7 +16,7 @@ export function Header() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 border-r border-slate-200 pr-4">
             <Image
-              src="/assets/emblem.svg"
+              src="/assets/Embelem.png"
               alt="Government of India emblem"
               width={52}
               height={52}

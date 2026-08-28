@@ -58,7 +58,7 @@ export function HeroSection() {
           <div className="relative mx-auto aspect-[16/11] w-full max-w-[500px] overflow-hidden rounded-[28px] border border-white/80 bg-white/80 p-4 shadow-[0_18px_50px_-18px_rgba(15,23,42,0.28)] backdrop-blur">
             <div className="absolute inset-x-5 top-4 h-8 rounded-full bg-gradient-to-r from-orange-100 via-white to-green-100" />
             <Image
-              src="/assets/taj-mahal-hero.svg"
+              src="/assets/Taj%20Mahal.png"
               alt="Indian eVisa portal hero illustration"
               fill
               priority
