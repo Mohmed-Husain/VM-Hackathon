@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { MobileNav } from "@/components/layout/mobile-nav";
 
@@ -12,15 +13,26 @@ export function Header() {
   return (
     <header className="border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#BFDBFE] bg-[#EFF6FF] text-sm font-bold text-[#0B2A6F]">
-            IN
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 border-r border-slate-200 pr-4">
+            <Image
+              src="/assets/emblem.svg"
+              alt="Government of India emblem"
+              width={52}
+              height={52}
+              className="h-12 w-12 shrink-0"
+              priority
+            />
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-slate-900">भारत सरकार</p>
+              <p className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">Government of India</p>
+            </div>
           </div>
-          <div>
-            <Link href="/" className="text-base font-semibold text-slate-950">
+          <div className="leading-tight">
+            <Link href="/" className="text-2xl font-semibold text-slate-950">
               Smart eVisa Portal
             </Link>
-            <p className="text-sm text-slate-500">Official-style digital visa assistance experience</p>
+            <p className="text-sm text-slate-500">Official gateway for guided Indian eVisa applications</p>
           </div>
         </div>
 
