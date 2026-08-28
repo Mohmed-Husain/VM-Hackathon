@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=evisa
-Group=www-data
-WorkingDirectory=/srv/evisa/VM-Hackathon/backend
-EnvironmentFile=/etc/evisa/backend.env
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/VM-Hackathon/backend
+EnvironmentFile=/home/ubuntu/VM-Hackathon/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/evisa/VM-Hackathon/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+ExecStart=/home/ubuntu/VM-Hackathon/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
