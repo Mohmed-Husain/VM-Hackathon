@@ -1,0 +1,36 @@
+name: Deploy Backend To Self-Hosted Runner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evisa-backend-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+    env:
+      APP_DIR: /home/ubuntu/VM-Hackathon
+      BRANCH: main
+      SERVICE_NAME: evisa-backend
+      PIP_CACHE_DIR: /home/ubuntu/.cache/pip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make deploy script executable
+        run: chmod +x deploy/scripts/deploy_backend.sh
+
+      - name: Deploy backend and restart services
+        run: deploy/scripts/deploy_backend.sh

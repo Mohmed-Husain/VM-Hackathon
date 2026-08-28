@@ -17,4 +17,5 @@ Module 1 establishes the backend foundation for the Smart eVisa Portal MVP.
 - The app reads `DB_URL` from the repository root `.env`.
 - If `DB_URL` uses `postgresql://` or `postgres://`, it is normalized to `postgresql+asyncpg://` for async SQLAlchemy.
 - Neon/libpq-style query params such as `sslmode` and `channel_binding` are normalized so `asyncpg` can connect cleanly.
-- `AUTO_CREATE_TABLES` is effectively enabled by default in code for fast local bootstrapping. We can make this stricter once more modules are in place.
+- `AUTO_CREATE_TABLES` is disabled by default in code so production stays migration-first.
+- For quick local bootstrapping, explicitly set `AUTO_CREATE_TABLES=true` in your local environment.
