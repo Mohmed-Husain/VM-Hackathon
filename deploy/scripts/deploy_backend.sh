@@ -49,7 +49,7 @@ else
 fi
 
 cd backend
-../.venv/bin/python -m alembic upgrade head
+"${APP_DIR}/.venv/bin/python" -m alembic upgrade head
 cd ..
 
 sudo install -D -m 0644 deploy/systemd/evisa-backend.service /etc/systemd/system/evisa-backend.service

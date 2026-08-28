@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     memori_api_key: str | None = Field(default=None, alias="MEMORI_API_KEY")
     payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
-    auto_create_tables: bool = True
+    auto_create_tables: bool = False
     cors_origins: str | list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
     @field_validator("cors_origins", mode="after")
