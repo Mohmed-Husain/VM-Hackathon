@@ -15,33 +15,35 @@ The **Smart eVisa Portal** is an AI-assisted, citizen-centric electronic visa ap
 ```mermaid
 graph TD
     subgraph Client ["Client Browser (Next.js 16 + React 19)"]
-        UI[5-Step Guided Wizard]
-        COMP[HTML5 Canvas Image Compressor]
-        AUTO[15s LocalStorage Autosave Engine]
-        AI_UI[Floating Grounded AI Assistant Widget]
-        REV[Review & Sealed Application Panel]
+        UI["5-Step Guided Wizard"]
+        COMP["HTML5 Canvas Image Compressor"]
+        AUTO["15s LocalStorage Autosave Engine"]
+        AI_UI["Floating Grounded AI Assistant Widget"]
+        REV["Review and Sealed Application Panel"]
     end
 
     subgraph API ["Backend API Server (FastAPI / Python 3.11)"]
-        AUTH[Mock Authentication & Session Guard]
-        APPS[Application & Draft Management]
-        DOCS[Document Upload & Storage Service]
-        OCR[Simulated Passport OCR Engine]
-        AI_SRV[Grounded AI Assistant & Rule Engine]
-        PAY[Payment Gateway Adapter (Placeholder)]
+        AUTH["Mock Authentication and Session Guard"]
+        APPS["Application and Draft Management"]
+        DOCS["Document Upload and Storage Service"]
+        OCR["Simulated Passport OCR Engine"]
+        AI_SRV["Grounded AI Assistant and Rule Engine"]
+        PAY["Payment Gateway Adapter Placeholder"]
     end
 
     subgraph Persistence ["Persistence & External Services"]
-        PG[(PostgreSQL Database)]
-        STORAGE[(Supabase Storage / Local S3 Bucket)]
-        RULES[official_visa_rules.json]
-        OPENAI[OpenAI GPT-4o-mini API]
+        PG[("PostgreSQL Database")]
+        STORAGE[("Supabase Storage or Local S3 Bucket")]
+        RULES["official_visa_rules.json"]
+        OPENAI["OpenAI GPT-4o-mini API"]
     end
 
-    UI -->|JSON REST Calls| API
-    COMP -->|Pre-compressed < 1MB files| DOCS
+    UI -->|JSON REST Calls| APPS
+    UI -->|Authentication Flow| AUTH
+    COMP -->|Pre-compressed under 1MB files| DOCS
     AUTO -->|15s background sync| APPS
     AI_UI -->|Contextual queries| AI_SRV
+    REV -->|Submission review| APPS
 
     AUTH --> PG
     APPS --> PG
