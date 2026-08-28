@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     backend_public_url: str = "http://localhost:8000"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = "gpt-4o-mini"
+    memori_api_key: str | None = Field(default=None, alias="MEMORI_API_KEY")
     payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
     auto_create_tables: bool = True
     cors_origins: str | list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -63,7 +64,6 @@ class Settings(BaseSettings):
         connect_args: dict = {}
 
         if sslmode and sslmode.lower() != "disable":
-            connect_args["ssl"] = ssl.create_default_context()
             if sslmode.lower() in ("require", "prefer", "allow"):
                 ctx = ssl.create_default_context()
                 ctx.check_hostname = False

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class AiChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=1200)
+    session_id: str | None = None
     application_id: UUID | None = None
     current_step: int | None = Field(default=None, ge=1, le=5)
 
@@ -20,6 +21,7 @@ class AiAssistantSource(BaseModel):
 
 class AiChatResponse(BaseModel):
     answer: str
-    mode: Literal["rules", "openai"]
+    session_id: str
+    mode: Literal["rules", "langchain"]
     sources: list[AiAssistantSource]
     suggested_prompts: list[str]
