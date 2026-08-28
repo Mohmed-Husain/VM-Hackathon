@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     backend_public_url: str = "http://localhost:8000"
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = "gpt-4o-mini"
+    deepseek_api_key: str | None = Field(default=None, alias="DEEPSEEK_API_KEY")
+    deepseek_model: str = Field(default="deepseek-chat", alias="DEEPSEEK_MODEL")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com", alias="DEEPSEEK_BASE_URL")
     memori_api_key: str | None = Field(default=None, alias="MEMORI_API_KEY")
     payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
     auto_create_tables: bool = False

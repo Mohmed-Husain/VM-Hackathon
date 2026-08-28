@@ -8,3 +8,5 @@ PyJWT
 email-validator
 python-multipart
 openai
+langchain
+langchain-openai
