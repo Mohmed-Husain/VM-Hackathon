@@ -42,3 +42,7 @@ export function clearSession(): void {
 
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
 }
+
+// Aliases
+export const loadStoredSession = getSession;
+export const clearStoredSession = clearSession;
