@@ -5,7 +5,6 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard", label: "Applications" },
   { href: "/applications", label: "Applications" },
   { href: "/login", label: "Login" },
 ];
@@ -40,7 +39,6 @@ export function Header() {
         <nav className="hidden items-center gap-2 md:flex">
           {NAV_ITEMS.map((item) => (
             <Link
-              key={item.href}
               key={`${item.href}-${item.label}`}
               href={item.href}
               className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
