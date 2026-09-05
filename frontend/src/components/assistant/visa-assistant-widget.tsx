@@ -74,12 +74,37 @@ function getSuggestions(step?: number): string[] {
   return FALLBACK_SUGGESTIONS.default;
 }
 
+const STEP_PROACTIVE_TIPS: Record<number, { tip: string; title: string }> = {
+  1: {
+    title: "Personal Details Tip",
+    tip: "Ensure your first and last names match the Machine Readable Zone (MRZ) of your passport exactly. Any middle name should be included in the First Name field.",
+  },
+  2: {
+    title: "Passport Validity Tip",
+    tip: "Indian eVisas strictly require at least **6 months validity** remaining on your passport from your intended arrival date, with at least two blank passport pages.",
+  },
+  3: {
+    title: "Travel Plan Tip",
+    tip: "e-Tourist visas permit entry through 31 designated international airports and 5 seaports. Make sure your departure flight falls within the validity window.",
+  },
+  4: {
+    title: "Smart Uploads Tip",
+    tip: "Upload a recent color photograph with a **clean white background** and **1:1 square aspect ratio**. Our auto-cropper and compression system will automatically optimize your files to consular limits.",
+  },
+  5: {
+    title: "Review & Seal Tip",
+    tip: "Carefully double-check your passport number and expiry date before sealing. Once sealed and payment is processed, consular records are locked.",
+  },
+};
+
 function buildWelcome(step?: number): string {
   if (step) {
-    return `### Step ${step} Guidance Ready\n\nI can help you review requirements, document rules, and specific fields for **Step ${step}**.\n\n- Ask any question below or pick a suggested topic to get started.`;
+    const proactive = STEP_PROACTIVE_TIPS[step];
+    return `### Step ${step} Guidance Ready\n\nI can help you review requirements, document rules, and specific fields for **Step ${step}**.\n\n${proactive ? `💡 **Proactive Tip:** ${proactive.tip}\n\n` : ""}- Ask any question below or pick a suggested topic to get started.`;
   }
   return "### Official Smart eVisa Guidance\n\nI am your official eVisa assistant. Ask me anything about:\n\n- **Passport & photo specifications**\n- **Visa sub-categories and validity**\n- **Authorized ports of entry**\n- **Application workflow and document uploads**";
 }
+
 
 /* === Rich Markdown Message Renderer === */
 
@@ -368,6 +393,7 @@ export function VisaAssistantWidget({
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastUserMessageRef = useRef<string>("");
+  const lastStepRef = useRef<number | undefined>(currentStep);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     if (listRef.current) {
@@ -383,6 +409,8 @@ export function VisaAssistantWidget({
   }, [messages, isSending]);
 
   useEffect(() => {
+    if (!currentStep) return;
+
     setMessages((prev) => {
       if (prev.length === 1 && prev[0]?.id === "welcome") {
         return [
@@ -393,9 +421,27 @@ export function VisaAssistantWidget({
           },
         ];
       }
+
+      if (lastStepRef.current !== currentStep) {
+        lastStepRef.current = currentStep;
+        const proactive = STEP_PROACTIVE_TIPS[currentStep];
+        if (proactive) {
+          const tipMsg: ChatMessage = {
+            id: `step-tip-${currentStep}-${Date.now()}`,
+            role: "assistant",
+            content: `### 💡 Proactive Step ${currentStep} Guidance\n\n${proactive.tip}`,
+            timestamp: formatCurrentTime(),
+            mode: "rules",
+            suggestedPrompts: getSuggestions(currentStep),
+          };
+          return [...prev, tipMsg];
+        }
+      }
+
       return prev;
     });
   }, [currentStep]);
+
 
   useEffect(() => {
     if (isOpen) {

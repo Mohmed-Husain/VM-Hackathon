@@ -67,6 +67,21 @@ class DocumentService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The uploaded file is empty.")
 
         extension = Path(file.filename).suffix or ".bin"
+        # Run compression pipeline
+        extension = (Path(file.filename).suffix or ".bin").lower()
+        stats = {
+            "original_size_bytes": len(content),
+            "compressed_size_bytes": len(content),
+            "compression_ratio": 0.0,
+        }
+
+        if extension == ".pdf":
+            from app.services.compression_service import CompressionService
+            content, stats = CompressionService.compress_pdf(content)
+        elif extension in (".jpg", ".jpeg", ".png", ".webp", ".bmp"):
+            from app.services.compression_service import CompressionService
+            content, stats = CompressionService.compress_image(content)
+
         timestamp = int(time.time())
         relative_path = Path("visa-documents") / str(application_id) / f"{document_type}_{timestamp}{extension}"
         destination_path = settings.storage_root / relative_path
@@ -97,6 +112,8 @@ class DocumentService:
         await session.commit()
         await session.refresh(document)
         return self._serialize(document)
+        return self._serialize(document, stats)
+
 
     async def delete_document(self, session: AsyncSession, current_user: User, document_id: UUID) -> None:
         document = await self.document_repository.get_for_user(session, document_id, current_user.id)
@@ -136,11 +153,12 @@ class DocumentService:
         application.progress_percentage = validation_summary.progress_percentage
         application.status = derive_status(validation_summary)
 
-    def _serialize(self, document) -> DocumentResponse:
+    def _serialize(self, document, stats: dict | None = None) -> DocumentResponse:
         ocr_extraction = None
         if document.extracted_ocr_data:
             ocr_extraction = PassportOcrExtraction.model_validate(document.extracted_ocr_data)
 
+        stats = stats or {}
         return DocumentResponse(
             document_id=document.id,
             application_id=document.application_id,
@@ -150,6 +168,10 @@ class DocumentService:
             public_url=document.public_url,
             content_type=document.content_type,
             file_size_bytes=document.file_size_bytes,
+            original_size_bytes=stats.get("original_size_bytes", document.file_size_bytes),
+            compressed_size_bytes=stats.get("compressed_size_bytes", document.file_size_bytes),
+            compression_ratio=stats.get("compression_ratio", 0.0),
             ocr_extraction=ocr_extraction,
             created_at=document.created_at,
         )
+

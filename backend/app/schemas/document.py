@@ -18,5 +18,9 @@ class DocumentResponse(BaseModel):
     public_url: str
     content_type: str
     file_size_bytes: int
+    original_size_bytes: int | None = None
+    compressed_size_bytes: int | None = None
+    compression_ratio: float | None = None
     ocr_extraction: PassportOcrExtraction | None = None
     created_at: datetime
+

@@ -16,11 +16,12 @@ import {
 import { VisaAssistantWidget } from "@/components/assistant/visa-assistant-widget";
 import { ProtectedPage } from "@/components/auth/protected-page";
 import { VISA_CATEGORIES } from "@/content/visa-categories";
-import { createApplication, getApplications, getCurrentUser } from "@/lib/api";
+import { createApplication, getApplications, getCurrentUser, getProfile } from "@/lib/api";
 import { getCategoryLabel } from "@/lib/application";
 import { clearSession } from "@/lib/session";
 import type { SessionUser, StoredSession } from "@/types/auth";
 import type { ApplicationSummary, VisaCategory } from "@/types/application";
+import type { ApplicantProfile } from "@/types/profile";
 
 export function DashboardShell() {
   return (
@@ -32,6 +33,7 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<SessionUser>(session.user);
   const [applications, setApplications] = useState<ApplicationSummary[]>([]);
+  const [profile, setProfile] = useState<ApplicantProfile | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [creatingCategory, setCreatingCategory] = useState<VisaCategory | null>(null);
@@ -50,14 +52,17 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
 
     async function hydrate() {
       try {
-        const [user, userApplications] = await Promise.all([
+        const [user, userApplications, userProfile] = await Promise.all([
           getCurrentUser(session.accessToken),
           getApplications(session.accessToken),
+          getProfile(session.accessToken).catch(() => null),
         ]);
         if (!cancelled) {
           setCurrentUser(user);
           setApplications(userApplications);
+          setProfile(userProfile);
         }
+
       } catch (authError) {
         if (!cancelled) {
           const message = authError instanceof Error ? authError.message : "Session verification failed.";
@@ -111,9 +116,17 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
       <section className="portal-card p-6 sm:p-8 bg-white border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0B2A6F] text-xs font-semibold mb-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#2563EB]" />
-              <span>Official eVisa Applicant Dashboard</span>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0B2A6F] text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>Official eVisa Applicant Dashboard</span>
+              </div>
+              {profile ? (
+                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Profile Saved &amp; Active ({profile.nationality || "Verified"})</span>
+                </div>
+              ) : null}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">
               Welcome back, {currentUser.full_name}.
@@ -135,12 +148,17 @@ function DashboardContent({ session }: Readonly<{ session: StoredSession }>) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">
-              <span>Account Status</span>
+              <span>Account Profile</span>
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-sm font-bold text-slate-900 truncate">{currentUser.email}</div>
-            <span className="text-[11px] text-emerald-700 font-medium">Verified Applicant</span>
+            <div className="text-sm font-bold text-slate-900 truncate">
+              {profile ? `${profile.first_name} ${profile.last_name}`.trim() || currentUser.full_name : currentUser.email}
+            </div>
+            <span className="text-[11px] text-emerald-700 font-medium">
+              {profile ? `Passport: ${profile.passport_number || "Verified"}` : "Standard Applicant"}
+            </span>
           </div>
+
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
             <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-1">

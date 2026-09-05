@@ -26,9 +26,12 @@ export function buildLocalDraftSnapshot(
   };
 }
 
+const memoryDrafts = new Map<string, LocalDraftSnapshot>();
+
 export function readLocalDraft(applicationId: string): LocalDraftSnapshot | null {
   if (typeof window === "undefined") {
     return null;
+    return memoryDrafts.get(applicationId) ?? null;
   }
 
   const raw = window.localStorage.getItem(getDraftStorageKey(applicationId));
@@ -37,25 +40,44 @@ export function readLocalDraft(applicationId: string): LocalDraftSnapshot | null
   }
 
   try {
+    const raw = window.localStorage.getItem(getDraftStorageKey(applicationId));
+    if (!raw) {
+      return memoryDrafts.get(applicationId) ?? null;
+    }
     return JSON.parse(raw) as LocalDraftSnapshot;
   } catch {
     window.localStorage.removeItem(getDraftStorageKey(applicationId));
     return null;
+    return memoryDrafts.get(applicationId) ?? null;
   }
 }
 
 export function writeLocalDraft(snapshot: LocalDraftSnapshot): void {
+  memoryDrafts.set(snapshot.application_id, snapshot);
+
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.setItem(getDraftStorageKey(snapshot.application_id), JSON.stringify(snapshot));
+  try {
+    window.localStorage.setItem(getDraftStorageKey(snapshot.application_id), JSON.stringify(snapshot));
+  } catch {
+    // Safari private mode quota exceeded fallback
+  }
 }
 
 export function clearLocalDraft(applicationId: string): void {
+  memoryDrafts.delete(applicationId);
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.removeItem(getDraftStorageKey(applicationId));
+  try {
+    window.localStorage.removeItem(getDraftStorageKey(applicationId));
+  } catch {
+    // Safari fallback
+  }
 }
+

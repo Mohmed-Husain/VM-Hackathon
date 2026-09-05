@@ -1,5 +1,11 @@
 import type { AiChatRequest, AiChatResponse } from "@/types/ai";
-import type { LoginRequest, LoginResponse, SessionUser } from "@/types/auth";
+import type {
+  CaptchaChallenge,
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  SessionUser,
+} from "@/types/auth";
 import type {
   ApplicationDetail,
   ApplicationSummary,
@@ -42,6 +48,31 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
 
   return parseJson<LoginResponse>(response);
 }
+
+export async function register(payload: RegisterRequest): Promise<LoginResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<LoginResponse>(response);
+}
+
+export async function generateCaptcha(): Promise<CaptchaChallenge> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/captcha/generate`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  return parseJson<CaptchaChallenge>(response);
+}
+
 
 export async function getCurrentUser(accessToken: string): Promise<SessionUser> {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
@@ -243,3 +274,48 @@ export async function submitApplication(
 
   return parseJson<SubmitApplicationResponse>(response);
 }
+
+export async function attemptPayment(
+  accessToken: string,
+  payload: import("@/types/payment").PaymentAttemptRequest,
+): Promise<import("@/types/payment").PaymentAttemptResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/payments/attempt`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJson<import("@/types/payment").PaymentAttemptResponse>(response);
+}
+
+export async function getPaymentLockStatus(
+  accessToken: string,
+  applicationId: string,
+): Promise<import("@/types/payment").LockStatusResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/payments/lock-status/${applicationId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return parseJson<import("@/types/payment").LockStatusResponse>(response);
+}
+
+export async function devSkipPaymentLock(
+  accessToken: string,
+  applicationId: string,
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/payments/dev-skip-lock/${applicationId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  return parseJson<{ message: string }>(response);
+}
+

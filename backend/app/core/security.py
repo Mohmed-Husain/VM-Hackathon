@@ -10,23 +10,40 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 
+import bcrypt
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        algorithm, salt, digest = hashed_password.split("$", 2)
-    except ValueError:
+    if not plain_password or not hashed_password:
         return False
 
-    if algorithm != "sha256":
-        return False
+    if hashed_password.startswith(("$2b$", "$2a$", "$2y$")):
+        try:
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8")[:72],
+                hashed_password.encode("utf-8"),
+            )
+        except Exception:
+            return False
 
-    candidate_digest = hashlib.sha256(f"{salt}{plain_password}".encode("utf-8")).hexdigest()
-    return hmac.compare_digest(candidate_digest, digest)
+    if hashed_password.startswith("sha256$"):
+        try:
+            algorithm, salt, digest = hashed_password.split("$", 2)
+        except ValueError:
+            return False
+        if algorithm != "sha256":
+            return False
+        candidate_digest = hashlib.sha256(f"{salt}{plain_password}".encode("utf-8")).hexdigest()
+        return hmac.compare_digest(candidate_digest, digest)
+
+    return False
 
 
 def get_password_hash(password: str) -> str:
-    salt = secrets.token_hex(16)
-    digest = hashlib.sha256(f"{salt}{password}".encode("utf-8")).hexdigest()
-    return f"sha256${salt}${digest}"
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8")[:72], salt).decode("utf-8")
+
+
 
 
 def create_access_token(user_id: UUID, email: str) -> str:

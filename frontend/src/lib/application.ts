@@ -150,6 +150,32 @@ export function calculateProgress(formData: ApplicationFormData): number {
   return Math.round(weighted);
 }
 
+export function sanitizePassportNumber(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9);
+}
+
+export function sanitizeName(value: string): string {
+  return value.replace(/[^a-zA-Z\s'-]/g, "").replace(/\s+/g, " ");
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  "personal.first_name": "First name is required as per your passport.",
+  "personal.last_name": "Last name is required as per your passport.",
+  "personal.date_of_birth": "Date of birth is required.",
+  "personal.nationality": "Nationality is required.",
+  "personal.gender": "Gender selection is required.",
+  "personal.marital_status": "Marital status is required.",
+  "personal.occupation": "Occupation is required.",
+  "passport.passport_number": "Passport number is required.",
+  "passport.issuing_country": "Issuing country is required.",
+  "passport.issue_date": "Passport issue date is required.",
+  "passport.expiry_date": "Passport expiry date is required.",
+  "travel.intended_arrival_date": "Intended arrival date is required.",
+  "travel.port_of_entry": "Port of entry is required.",
+  "travel.stay_duration_days": "Duration of stay is required.",
+  "travel.accommodation_address": "Accommodation address in India is required.",
+};
+
 export function getValidationSummary(formData: ApplicationFormData): ClientValidationSummary {
   const stepErrors: Record<number, Record<string, string>> = {
     1: {},
@@ -162,34 +188,41 @@ export function getValidationSummary(formData: ApplicationFormData): ClientValid
   for (const field of REQUIRED_PERSONAL_FIELDS) {
     if (!formData.personal[field].trim()) {
       addError(stepErrors, 1, `personal.${field}`, "This field is required.");
+      addError(stepErrors, 1, `personal.${field}`, FIELD_LABELS[`personal.${field}`] || "This field is required.");
     }
   }
 
   for (const field of REQUIRED_PASSPORT_FIELDS) {
     if (!formData.passport[field].trim()) {
       addError(stepErrors, 2, `passport.${field}`, "This field is required.");
+      addError(stepErrors, 2, `passport.${field}`, FIELD_LABELS[`passport.${field}`] || "This field is required.");
     }
   }
 
   if (formData.passport.passport_number && !/^[A-Z0-9]{6,9}$/.test(formData.passport.passport_number.toUpperCase())) {
     addError(stepErrors, 2, "passport.passport_number", "Passport number must be 6 to 9 uppercase letters or digits.");
+    addError(stepErrors, 2, "passport.passport_number", "Passport number must be 6 to 9 alphanumeric characters (e.g. A1234567).");
   }
 
   const issueDate = parseIsoDate(formData.passport.issue_date);
   const expiryDate = parseIsoDate(formData.passport.expiry_date);
   if (formData.passport.issue_date && !issueDate) {
     addError(stepErrors, 2, "passport.issue_date", "Enter a valid issue date.");
+    addError(stepErrors, 2, "passport.issue_date", "Enter a valid issue date in YYYY-MM-DD format.");
   }
   if (formData.passport.expiry_date && !expiryDate) {
     addError(stepErrors, 2, "passport.expiry_date", "Enter a valid expiry date.");
+    addError(stepErrors, 2, "passport.expiry_date", "Enter a valid expiry date in YYYY-MM-DD format.");
   }
   if (issueDate && expiryDate && issueDate > expiryDate) {
     addError(stepErrors, 2, "passport.expiry_date", "Passport expiry must be after the issue date.");
+    addError(stepErrors, 2, "passport.expiry_date", "Passport expiry date must be after the issue date.");
   }
 
   for (const field of REQUIRED_TRAVEL_FIELDS) {
     if (!formData.travel[field].trim()) {
       addError(stepErrors, 3, `travel.${field}`, "This field is required.");
+      addError(stepErrors, 3, `travel.${field}`, FIELD_LABELS[`travel.${field}`] || "This field is required.");
     }
   }
 
@@ -197,6 +230,7 @@ export function getValidationSummary(formData: ApplicationFormData): ClientValid
   if (formData.travel.intended_arrival_date && !arrivalDate) {
     addError(stepErrors, 3, "travel.intended_arrival_date", "Enter a valid intended arrival date.");
   }
+
   if (formData.travel.stay_duration_days) {
     const duration = Number(formData.travel.stay_duration_days);
     if (!Number.isInteger(duration) || duration <= 0) {

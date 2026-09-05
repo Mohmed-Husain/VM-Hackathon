@@ -1,15 +1,19 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogIn, AlertCircle, KeyRound, Mail } from "lucide-react";
+import { LogIn, AlertCircle, KeyRound, Mail, UserPlus } from "lucide-react";
 
 import { login } from "@/lib/api";
 import { saveSession } from "@/lib/session";
+import { CaptchaBox } from "./captcha-box";
 
 type FormState = {
   email: string;
   password: string;
+  captcha_challenge_id: string;
+  captcha_answer: string;
 };
 
 type ValidationState = Partial<Record<keyof FormState, string>>;
@@ -17,6 +21,8 @@ type ValidationState = Partial<Record<keyof FormState, string>>;
 const initialState: FormState = {
   email: "applicant@example.com",
   password: "password123",
+  captcha_challenge_id: "",
+  captcha_answer: "",
 };
 
 function validate(form: FormState): ValidationState {
@@ -30,6 +36,10 @@ function validate(form: FormState): ValidationState {
 
   if (!form.password.trim()) {
     nextErrors.password = "Password is required.";
+  }
+
+  if (!form.captcha_answer.trim()) {
+    nextErrors.captcha_answer = "Please enter the security verification code.";
   }
 
   return nextErrors;
@@ -60,6 +70,7 @@ export function LoginForm() {
       router.push("/dashboard");
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Unable to sign in right now.");
+      setForm((prev) => ({ ...prev, captcha_answer: "" }));
     } finally {
       setIsSubmitting(false);
     }
@@ -132,6 +143,16 @@ export function LoginForm() {
           {errors.password ? <span className="text-xs text-rose-600 font-medium mt-1 block">{errors.password}</span> : null}
         </div>
 
+        {/* CAPTCHA Security Verification */}
+        <CaptchaBox
+          challengeId={form.captcha_challenge_id}
+          answer={form.captcha_answer}
+          onChallengeChange={(id) => setForm((prev) => ({ ...prev, captcha_challenge_id: id }))}
+          onAnswerChange={(ans) => setForm((prev) => ({ ...prev, captcha_answer: ans }))}
+          error={errors.captcha_answer}
+          disabled={isSubmitting}
+        />
+
         {/* Submit Button */}
         <button
           type="submit"
@@ -143,8 +164,20 @@ export function LoginForm() {
         </button>
       </form>
 
+      {/* Link to Register */}
+      <div className="mt-5 pt-4 border-t border-slate-100 text-center text-xs sm:text-sm text-slate-600">
+        New to the eVisa Portal?{" "}
+        <Link
+          href="/register"
+          className="font-semibold text-[#2563EB] hover:text-[#0B2A6F] hover:underline inline-flex items-center gap-1"
+        >
+          <UserPlus className="w-3.5 h-3.5 inline" />
+          Create an Account
+        </Link>
+      </div>
+
       {/* Seeded Demo Helper */}
-      <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
+      <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
         <div className="font-bold text-slate-800 flex items-center gap-1.5">
           <span>Seeded Demo Credentials:</span>
         </div>
@@ -156,3 +189,4 @@ export function LoginForm() {
     </div>
   );
 }
+

@@ -10,3 +10,6 @@ python-multipart
 openai
 langchain
 langchain-openai
+bcrypt
+Pillow
+pikepdf

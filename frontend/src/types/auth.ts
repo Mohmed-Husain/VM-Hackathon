@@ -7,6 +7,22 @@ export type SessionUser = {
 export type LoginRequest = {
   email: string;
   password: string;
+  captcha_challenge_id?: string;
+  captcha_answer?: string;
+};
+
+export type RegisterRequest = {
+  email: string;
+  password: string;
+  confirm_password: string;
+  full_name: string;
+  captcha_challenge_id: string;
+  captcha_answer: string;
+};
+
+export type CaptchaChallenge = {
+  challenge_id: string;
+  image_base64: string;
 };
 
 export type LoginResponse = {
@@ -22,3 +38,4 @@ export type StoredSession = {
   expiresIn: number;
   user: SessionUser;
 };
+

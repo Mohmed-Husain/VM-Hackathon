@@ -3,9 +3,14 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Check } from "lucide-react";
 import { VisaAssistantWidget } from "@/components/assistant/visa-assistant-widget";
 import { ProtectedPage } from "@/components/auth/protected-page";
 import { ReviewSubmissionPanel, type ReviewSection } from "@/components/wizard/review-submission-panel";
+import { PassportPhotoCropper } from "@/components/upload/passport-photo-cropper";
+import { DocumentValidationBadge } from "@/components/upload/document-validation-badge";
+import { UploadQueue, type QueueItem } from "@/components/upload/upload-queue";
+
 import {
   WIZARD_STEPS,
   calculateProgress,
@@ -13,7 +18,9 @@ import {
   getCategoryLabel,
   getStepFieldPaths,
   getValidationSummary,
+  sanitizePassportNumber,
 } from "@/lib/application";
+
 import {
   deleteDocument,
   getApplication,
@@ -104,6 +111,9 @@ function ApplicationWizardContent({
   const [saveMessage, setSaveMessage] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const [cropperFile, setCropperFile] = useState<{ file: File; src: string } | null>(null);
+  const [uploadQueue, setUploadQueue] = useState<QueueItem[]>([]);
+
 
   const draftRef = useRef(draft);
   const stepRef = useRef(activeStep);
@@ -438,10 +448,42 @@ function ApplicationWizardContent({
     }
   }
 
+  function handleFileSelectedForCard(cardType: DocumentType, file: File) {
+    if (cardType === "applicant_photo" && file.type.startsWith("image/")) {
+      const src = URL.createObjectURL(file);
+      setCropperFile({ file, src });
+    } else {
+      void handleDocumentUpload(cardType, file);
+    }
+  }
+
+  function handleCropCompleted(blob: Blob) {
+    if (!cropperFile) return;
+    const croppedFile = new File([blob], "applicant_photo.jpg", { type: "image/jpeg" });
+    URL.revokeObjectURL(cropperFile.src);
+    setCropperFile(null);
+    void handleDocumentUpload("applicant_photo", croppedFile);
+  }
+
   async function handleDocumentUpload(documentType: DocumentType, file: File) {
     if (isSubmitted) {
       return;
     }
+
+    const queueId = `${documentType}-${Date.now()}`;
+    const cardTitle = DOCUMENT_CARDS.find((c) => c.type === documentType)?.title ?? documentType;
+    const origSizeFormatted = formatFileSize(file.size);
+
+    setUploadQueue((prev) => [
+      ...prev.filter((i) => i.id !== queueId),
+      {
+        id: queueId,
+        name: file.name,
+        typeLabel: cardTitle,
+        progress: 25,
+        stage: "compressing",
+      },
+    ]);
 
     try {
       setUploadStateByType((current) => ({
@@ -455,6 +497,10 @@ function ApplicationWizardContent({
         [documentType]: prepared.notes.join(" "),
       }));
 
+      setUploadQueue((prev) =>
+        prev.map((i) => (i.id === queueId ? { ...i, progress: 65, stage: "uploading" } : i))
+      );
+
       setUploadStateByType((current) => ({
         ...current,
         [documentType]: "uploading",
@@ -464,6 +510,10 @@ function ApplicationWizardContent({
       handleFieldBlur(getDocumentFieldPath(documentType));
 
       if (documentType === "passport_scan") {
+        setUploadQueue((prev) =>
+          prev.map((i) => (i.id === queueId ? { ...i, progress: 85, stage: "ocr" } : i))
+        );
+
         setUploadStateByType((current) => ({
           ...current,
           [documentType]: "ocr",
@@ -496,10 +546,32 @@ function ApplicationWizardContent({
         await persistDraft("ocr", stepRef.current, nextDraft);
         await refreshDocumentsState("Passport details auto-filled via OCR");
         return;
+      } else {
+        await refreshDocumentsState();
       }
 
       await refreshDocumentsState();
+      const compSizeFormatted = formatFileSize(uploadedDocument.file_size_bytes);
+      const ratio = uploadedDocument.compression_ratio ?? (file.size > uploadedDocument.file_size_bytes ? (file.size - uploadedDocument.file_size_bytes) / file.size : 0);
+
+      setUploadQueue((prev) =>
+        prev.map((i) =>
+          i.id === queueId
+            ? {
+                ...i,
+                progress: 100,
+                stage: "done",
+                originalSize: origSizeFormatted,
+                compressedSize: compSizeFormatted,
+                ratio: ratio,
+              }
+            : i
+        )
+      );
     } catch (requestError) {
+      setUploadQueue((prev) =>
+        prev.map((i) => (i.id === queueId ? { ...i, stage: "error", error: "Upload failed" } : i))
+      );
       handleRequestError(requestError, router, setError);
     } finally {
       setUploadStateByType((current) => ({
@@ -642,15 +714,45 @@ function ApplicationWizardContent({
 
         <section className="content-panel">
           {(activeStep === 1 || activeStep === 2) && (
-            <div className="action-strip">
-              <button className="secondary-button inline" type="button" onClick={handleUseSavedProfile} disabled={!profile || isSubmitted}>
-                {profile ? "Use my saved profile data" : "No saved profile yet"}
-              </button>
-              <button className="secondary-button inline" type="button" onClick={handleSaveProfile} disabled={isSavingProfile || isSubmitted}>
-                {isSavingProfile ? "Saving profile..." : "Save current details as profile"}
-              </button>
+            <div className="mb-6 rounded-2xl border border-blue-200/80 bg-linear-to-r from-blue-50/90 via-indigo-50/50 to-white p-4 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B2A6F]">
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                    {profile
+                      ? `Saved Applicant Profile: ${profile.first_name} ${profile.last_name} (${profile.nationality || "Verified"})`
+                      : "No Saved Profile Found"}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {profile
+                      ? "Auto-fill personal and passport fields instantly from your PostgreSQL profile."
+                      : "Fill in the fields below and save as your persistent profile for one-click re-use."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {profile && (
+                    <button
+                      type="button"
+                      onClick={handleUseSavedProfile}
+                      disabled={isSubmitted}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B2A6F] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#081E4F] disabled:opacity-50"
+                    >
+                      <span>✨ Use Profile Data</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={isSavingProfile || isSubmitted}
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <span>{isSavingProfile ? "Saving..." : "Save Details to Profile"}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
+
 
           {activeStep === 1 ? (
             <div className="form-grid two-col">
@@ -692,28 +794,32 @@ function ApplicationWizardContent({
           ) : null}
 
           {activeStep === 4 ? (
-            <div className="document-card-grid">
-              {DOCUMENT_CARDS.map((card) => {
-                const existingDocument = documents.find((document) => document.document_type === card.type);
-                return (
-                  <DocumentUploadCard
-                    key={card.type}
-                    path={getDocumentFieldPath(card.type)}
-                    title={card.title}
-                    description={card.description}
-                    accept={card.accept}
-                    document={existingDocument}
-                    error={getVisibleFieldError(getDocumentFieldPath(card.type), touchedFields, validationSummary.stepErrors)}
-                    note={uploadNotes[card.type]}
-                    uploadState={uploadStateByType[card.type]}
-                    isLocked={isSubmitted}
-                    onBlur={handleFieldBlur}
-                    onDelete={existingDocument ? () => handleDocumentDelete(existingDocument.document_id) : undefined}
-                    onFileSelected={(file) => void handleDocumentUpload(card.type, file)}
-                  />
-                );
-              })}
-              {passportOcrPreview ? <OcrPreviewCard extraction={passportOcrPreview} /> : null}
+            <div className="space-y-6">
+              <UploadQueue items={uploadQueue} />
+              <div className="document-card-grid">
+                {DOCUMENT_CARDS.map((card) => {
+                  const existingDocument = documents.find((document) => document.document_type === card.type);
+                  return (
+                    <DocumentUploadCard
+                      key={card.type}
+                      documentType={card.type}
+                      path={getDocumentFieldPath(card.type)}
+                      title={card.title}
+                      description={card.description}
+                      accept={card.accept}
+                      document={existingDocument}
+                      error={getVisibleFieldError(getDocumentFieldPath(card.type), touchedFields, validationSummary.stepErrors)}
+                      note={uploadNotes[card.type]}
+                      uploadState={uploadStateByType[card.type]}
+                      isLocked={isSubmitted}
+                      onBlur={handleFieldBlur}
+                      onDelete={existingDocument ? () => handleDocumentDelete(existingDocument.document_id) : undefined}
+                      onFileSelected={(file) => handleFileSelectedForCard(card.type, file)}
+                    />
+                  );
+                })}
+                {passportOcrPreview ? <OcrPreviewCard extraction={passportOcrPreview} /> : null}
+              </div>
             </div>
           ) : null}
 
@@ -727,6 +833,9 @@ function ApplicationWizardContent({
               isSubmitting={isSubmitting}
               isSubmitted={isSubmitted}
               submittedAt={application?.submitted_at}
+              applicationId={applicationId}
+              accessToken={session.accessToken}
+              feeAmount={application?.visa_category === "tourist_multi_entry" ? 85 : application?.visa_category === "business_expedited" ? 120 : 50}
               onEditStep={handleReviewEdit}
               onDeclarationBlur={() => handleFieldBlur("review.declaration_accepted")}
               onDeclarationChange={(nextValue) => handleFieldChange("review", "declaration_accepted", nextValue)}
@@ -762,10 +871,21 @@ function ApplicationWizardContent({
           </div>
         </section>
       </div>
+      {cropperFile ? (
+        <PassportPhotoCropper
+          imageSrc={cropperFile.src}
+          onCropComplete={handleCropCompleted}
+          onCancel={() => {
+            URL.revokeObjectURL(cropperFile.src);
+            setCropperFile(null);
+          }}
+        />
+      ) : null}
       <VisaAssistantWidget accessToken={session.accessToken} applicationId={applicationId} currentStep={activeStep} />
     </main>
   );
 }
+
 
 function Field({
   path,
@@ -786,6 +906,8 @@ function Field({
   onChange: (value: string) => void;
   type?: "text" | "date" | "number";
 }>) {
+  const isValid = Boolean(!error && value && value.trim().length > 0);
+
   return (
     <label className="field-group">
       <span className="field-label">{label}</span>
@@ -798,13 +920,43 @@ function Field({
         onBlur={() => onBlur(path)}
         onChange={(event) => onChange(event.target.value)}
       />
+      <div className="flex items-center justify-between">
+        <span className="field-label">{label}</span>
+        {isValid && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+            <Check className="h-3 w-3" /> Valid
+          </span>
+        )}
+      </div>
+      <div className="relative">
+        <input
+          className={`text-input ${isValid ? "border-emerald-400 focus:border-emerald-600" : ""}`}
+          data-invalid={Boolean(error)}
+          type={type}
+          value={value}
+          disabled={disabled}
+          onBlur={() => onBlur(path)}
+          onChange={(event) => {
+            let val = event.target.value;
+            if (path === "passport.passport_number") {
+              val = sanitizePassportNumber(val);
+            }
+            onChange(val);
+          }}
+        />
+        {isValid ? (
+          <Check className="pointer-events-none absolute top-3 right-3 h-4 w-4 text-emerald-500" />
+        ) : null}
+      </div>
       {error ? <span className="error-text">{error}</span> : null}
     </label>
   );
 }
 
+
 function DocumentUploadCard({
   path,
+  documentType,
   title,
   description,
   accept,
@@ -818,6 +970,7 @@ function DocumentUploadCard({
   onDelete,
 }: Readonly<{
   path: string;
+  documentType: DocumentType;
   title: string;
   description: string;
   accept: string;
@@ -876,12 +1029,21 @@ function DocumentUploadCard({
 
       <div className="document-upload-body">
         {document ? (
-          <div className="document-meta">
-            <span>{document.file_name}</span>
-            <span className="subtle">{formatFileSize(document.file_size_bytes)}</span>
-            <a className="subtle linkish" href={document.public_url} target="_blank" rel="noreferrer">
-              Open uploaded file
-            </a>
+          <div className="space-y-2">
+            <div className="document-meta">
+              <span>{document.file_name}</span>
+              <span className="subtle">{formatFileSize(document.file_size_bytes)}</span>
+              <a className="subtle linkish" href={document.public_url} target="_blank" rel="noreferrer">
+                Open uploaded file
+              </a>
+            </div>
+            <DocumentValidationBadge
+              documentType={documentType}
+              fileSizeBytes={document.file_size_bytes}
+              fileName={document.file_name}
+              isCompressed={Boolean(document.compression_ratio && document.compression_ratio > 0)}
+              compressionRatio={document.compression_ratio}
+            />
           </div>
         ) : (
           <p className="subtle">Drag and drop a file here or choose one from your device.</p>
@@ -889,6 +1051,7 @@ function DocumentUploadCard({
         {note ? <span className="subtle">{note}</span> : null}
         {error ? <span className="error-text">{error}</span> : null}
       </div>
+
 
       <div className="document-actions">
         <input ref={inputRef} className="visually-hidden" type="file" accept={accept} onChange={(event) => handleFiles(event.target.files)} />

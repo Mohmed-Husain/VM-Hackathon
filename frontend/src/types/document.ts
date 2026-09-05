@@ -34,6 +34,10 @@ export type ApplicationDocument = {
   public_url: string;
   content_type: string;
   file_size_bytes: number;
+  original_size_bytes?: number;
+  compressed_size_bytes?: number;
+  compression_ratio?: number;
   ocr_extraction?: PassportOcrExtraction | null;
   created_at: string;
 };
+

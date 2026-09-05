@@ -24,6 +24,9 @@ export function ReviewSubmissionPanel({
   isSubmitting,
   isSubmitted,
   submittedAt,
+  applicationId,
+  accessToken,
+  feeAmount,
   onEditStep,
   onDeclarationBlur,
   onDeclarationChange,
@@ -37,6 +40,9 @@ export function ReviewSubmissionPanel({
   isSubmitting: boolean;
   isSubmitted: boolean;
   submittedAt?: string | null;
+  applicationId?: string;
+  accessToken?: string;
+  feeAmount?: number;
   onEditStep: (step: number) => void;
   onDeclarationBlur: () => void;
   onDeclarationChange: (nextValue: boolean) => void;
@@ -126,6 +132,13 @@ export function ReviewSubmissionPanel({
         <strong>Payment is intentionally hidden</strong>
         The payment step is preserved as a later module, but it remains out of the visible applicant flow for now.
       </div>
+      {applicationId && accessToken ? (
+        <PaymentPlaceholderPanel
+          applicationId={applicationId}
+          accessToken={accessToken}
+          feeAmount={feeAmount}
+        />
+      ) : null}
 
       <PaymentPlaceholderPanel />
 
