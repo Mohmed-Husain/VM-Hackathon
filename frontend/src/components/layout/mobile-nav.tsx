@@ -15,7 +15,7 @@ export function MobileNav({ items }: MobileNavProps) {
       <div className="flex flex-wrap justify-end gap-2">
         {items.map((item) => (
           <Link
-            key={item.href}
+            key={`${item.href}-${item.label}`}
             href={item.href}
             className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
           >
